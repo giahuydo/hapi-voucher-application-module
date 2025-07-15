@@ -1,6 +1,8 @@
 import { Request, ResponseToolkit } from '@hapi/hapi';
-import * as EventService from './event.service';
-import { CreateEventInput, UpdateEventInput } from './dto/event.input';
+import * as EventService from '../event.service';
+import { CreateEventInput, UpdateEventInput } from '../dto/event.input';
+import { toEventDTO, toEventDTOList } from '../event.transformer';
+import { LockResponseDTO } from '../dto/event.dto';
 
 /**
  * Get all events
@@ -8,11 +10,12 @@ import { CreateEventInput, UpdateEventInput } from './dto/event.input';
 export const getAllEvents = async (_req: Request, h: ResponseToolkit) => {
   try {
     const events = await EventService.getAllEvents();
-    return h.response({ success: true, data: events });
+    return h.response({ success: true, data: toEventDTOList(events) });
   } catch (err: any) {
     return h.response({ success: false, message: err.message }).code(500);
   }
 };
+
 
 /**
  * Get event by ID
@@ -36,8 +39,8 @@ export const getEventById = async (req: Request, h: ResponseToolkit) => {
 export const createEvent = async (req: Request, h: ResponseToolkit) => {
   try {
     const input = req.payload as CreateEventInput;
-    const created = await EventService.createEvent(input);
-    return h.response({ success: true, data: created }).code(201);
+    const event = await EventService.createEvent(input);
+    return h.response({ success: true, data: toEventDTO(event) }).code(201);
   } catch (err: any) {
     return h.response({ success: false, message: err.message }).code(400);
   }
@@ -50,17 +53,18 @@ export const updateEvent = async (req: Request, h: ResponseToolkit) => {
   try {
     const id = req.params.id;
     const input = req.payload as UpdateEventInput;
-    const updated = await EventService.updateEvent(id, input);
 
+    const updated = await EventService.updateEvent(id, input);
     if (!updated) {
       return h.response({ success: false, message: 'Event not found' }).code(404);
     }
 
-    return h.response({ success: true, data: updated });
+    return h.response({ success: true, data: toEventDTO(updated) });
   } catch (err: any) {
     return h.response({ success: false, message: err.message }).code(400);
   }
 };
+
 
 /**
  * Delete event
@@ -79,35 +83,88 @@ export const deleteEvent = async (req: Request, h: ResponseToolkit) => {
   }
 };
 
+
 /**
- * Request edit lock
+ * 📌 Request edit lock for a specific event
+ * @route PUT /events/{eventId}/lock/request
  */
 export const requestEditLock = async (req: Request, h: ResponseToolkit) => {
-  const { eventId } = req.params;
-  const userId = req.auth.credentials?.userId as string;
+  try {
+    const { eventId } = req.params;
+    const userId = req.auth.credentials?.userId as string;
 
-  const { code, message } = await EventService.requestEditLock(eventId, userId);
-  return h.response({ success: code === 200, message }).code(code);
+    if (!userId) {
+      return h.response({
+        success: false,
+        message: 'Unauthorized: Missing user ID'
+      }).code(401);
+    }
+
+    const result: LockResponseDTO = await EventService.requestEditLock(eventId, userId);
+    
+    if (!result.eventId) {
+      return h.response({
+        success: false,
+        message: 'Event ID is missing in the response'
+      }).code(500);
+    }
+
+    return h.response({
+      success: result.code === 200,
+      eventId: result.eventId,
+      message: result.message,
+      lockUntil: result.lockUntil
+    }).code(result.code);
+  } catch (err: any) {
+    return h.response({
+      success: false,
+      message: err.message || 'Unexpected error occurred'
+    }).code(500);
+  }
 };
+
 
 /**
  * Release edit lock
  */
 export const releaseEditLock = async (req: Request, h: ResponseToolkit) => {
-  const { eventId } = req.params;
-  const userId = req.auth.credentials?.userId as string;
+  try {
+    const { eventId } = req.params;
+    const userId = req.auth.credentials?.userId as string;
 
-  const { code, message } = await EventService.releaseEditLock(eventId, userId);
-  return h.response({ success: code === 200, message }).code(code);
+    const result: LockResponseDTO = await EventService.releaseEditLock(eventId, userId);
+
+    return h.response({
+      success: result.code === 200,
+      eventId: result.eventId,
+      message: result.message,
+      lockUntil: result.lockUntil
+    }).code(result.code);
+  } catch (err: any) {
+    return h.response({
+      success: false,
+      message: err.message || 'Unexpected error'
+    }).code(500);
+  }
 };
 
 /**
  * Maintain (extend) edit lock
  */
 export const maintainEditLock = async (req: Request, h: ResponseToolkit) => {
-  const { eventId } = req.params;
-  const userId = req.auth.credentials?.userId as string;
+  try {
+    const { eventId } = req.params;
+    const userId = req.auth.credentials?.userId as string;
 
-  const { code, message } = await EventService.maintainEditLock(eventId, userId);
-  return h.response({ success: code === 200, message }).code(code);
+    const result: LockResponseDTO = await EventService.maintainEditLock(eventId, userId);
+
+    return h.response({
+      success: result.code === 200,
+      eventId: result.eventId,
+      message: result.message,
+      lockUntil: result.lockUntil
+    }).code(result.code);
+  } catch (err: any) {
+    return h.response({ success: false, message: err.message }).code(500);
+  }
 };

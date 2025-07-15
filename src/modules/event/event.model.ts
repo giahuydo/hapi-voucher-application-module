@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface EventDocument extends Document {
+  updatedAt: Date;
   name: string;
   maxQuantity: number;
   issuedCount: number;

@@ -20,7 +20,7 @@ export const register = async (input: RegisterInput): Promise<AuthResponseDTO> =
   const newUser = new User({
     name: input.name,
     email: input.email,
-    password: input.password // được hash trong schema
+    password: input.password ? await bcrypt.hash(input.password, 10) : undefined,
   });
 
   const savedUser = await newUser.save();

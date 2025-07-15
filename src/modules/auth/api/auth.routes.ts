@@ -1,6 +1,6 @@
 import { ServerRoute } from '@hapi/hapi';
 import { loginHandler, registerHandler } from './auth.handler';
-import { loginSchema, registerSchema } from './dto/auth.input';
+import { loginSchema, registerSchema } from '../dto/auth.input';
 
 const authRoutes: ServerRoute[] = [
   {

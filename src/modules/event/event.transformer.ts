@@ -1,18 +1,20 @@
-import { EventDTO } from './dto/event.dto';
-import { EventDocument } from './event.model';
 
-/**
- * Transforms a Mongoose EventDocument into a safe EventDTO
- */
-export function transformEvent(event: EventDocument): EventDTO {
+import { EventDTO } from '../event/dto/event.dto';
+import { EventDocument } from '../event/event.model';
+
+export const toEventDTO = (doc: EventDocument): EventDTO => {
   return {
-    id: event._id.toString(),
-    name: event.name,
-    maxQuantity: event.maxQuantity,
-    issuedCount: event.issuedCount,
-    createdAt: event.createdAt,
-    updatedAt: event.updatedAt,
-    editingBy: event.editingBy ?? null,
-    editLockAt: event.editLockAt ?? null,
+    id: doc._id.toString(),
+    name: doc.name,
+    maxQuantity: doc.maxQuantity,
+    issuedCount: doc.issuedCount,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    editingBy: doc.editingBy ?? null,
+    editLockAt: doc.editLockAt ?? null
   };
-}
+};
+
+export const toEventDTOList = (docs: EventDocument[]): EventDTO[] => {
+  return docs.map(toEventDTO);
+};

@@ -12,11 +12,13 @@ import voucherRoutes from './src/modules/voucher/api/voucher.routes';
 import eventRoutes from './src/modules/event/api/event.routes';
 import authRoutes from './src/modules/auth/api/auth.routes';
 
+console.log('🔧 Initializing server...');
 // Agenda job
 import unlockVoucherLocksJob from './agenda/jobs/unlockVoucherLocks.job';
 
 dotenv.config();
 
+console.log('🔧 Starting server...');
 // JWT validation function
 const validateJWT = async (decoded: any, _request: Hapi.Request, _h: Hapi.ResponseToolkit) => {
   if (!decoded || !decoded.sub) return { isValid: false };
@@ -32,6 +34,7 @@ const init = async () => {
       port: process.env.PORT || 3000,
       host: '0.0.0.0'
     });
+    console.log(`🔧 Initializing Hapi server on port ${server.settings.port}`);
 
     // Route test
     server.route({
@@ -52,6 +55,7 @@ const init = async () => {
       validate: validateJWT,
       verifyOptions: { algorithms: ['HS256'] }
     });
+    console.log('✅ JWT auth strategy registered');
 
     // Swagger setup
     await server.register([
@@ -76,6 +80,7 @@ const init = async () => {
       }
     ]);
 
+    console.log('✅ Swagger documentation registered');
     // 🧩 Route registration (auth routes are public)
     const publicAuthRoutes: Hapi.ServerRoute[] = authRoutes.map(route => ({
       ...route,

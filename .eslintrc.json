@@ -1,0 +1,17 @@
+{
+    "parser": "@typescript-eslint/parser",      // Use TypeScript parser for ESLint
+    "parserOptions": {
+      "ecmaVersion": 2020,                      // Support modern JavaScript syntax (ES2020)
+      "sourceType": "module"                    // Allow usage of ES modules (import/export)
+    },
+    "extends": [
+      "eslint:recommended",                     // Base ESLint recommended rules
+      "plugin:@typescript-eslint/recommended",  // Recommended rules from the TypeScript plugin
+      "plugin:prettier/recommended"             // Integrate Prettier formatting with ESLint
+    ],
+    "plugins": ["@typescript-eslint"],          // Enable TypeScript-specific linting rules
+    "rules": {
+      "prettier/prettier": ["error"]            // Show an error if code does not follow Prettier format
+    }
+  }
+  

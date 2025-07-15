@@ -11,3 +11,11 @@ export interface EventDTO {
   editingBy: string | null;
   editLockAt: Date | null;
 }
+
+export interface LockResponseDTO {
+  code: number;
+  message: string;
+  eventId: string;
+  lockUntil: Date | null;
+}
+

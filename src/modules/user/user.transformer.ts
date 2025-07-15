@@ -7,7 +7,7 @@ import { UserDTO } from './dto/user.dto';
  */
 export function transformUser(user: UserDocument): UserDTO {
   return {
-    id: user._id.toString(),
+    id: (user._id as unknown as { toString: () => string }).toString(),
     name: user.name,
     email: user.email,
     role: user.role,
@@ -15,4 +15,8 @@ export function transformUser(user: UserDocument): UserDTO {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
+}
+
+export function transformUserList(users: UserDocument[]): UserDTO[] {
+  return users.map(transformUser);
 }
