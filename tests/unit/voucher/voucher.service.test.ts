@@ -1,7 +1,7 @@
 import * as VoucherService from '../../../src/modules/voucher/voucher.service';
+import * as UserService from '../../../src/modules/user/user.service';
 import { Event } from '../../../src/modules/event/event.model';
 import { Voucher } from '../../../src/modules/voucher/voucher.model';
-import * as UserService from '../../../src/modules/user/user.service';
 import emailQueue from '../../../jobs/queues/email.queue';
 import mongoose from 'mongoose';
 
@@ -16,6 +16,11 @@ jest.mock('../../../jobs/queues/email.queue', () => ({
     add: jest.fn(),
   },
 }));
+jest.mock('../../../src/services/user.service', () => ({
+  getUserById: jest.fn(),
+}));
+
+
 jest.mock('mongoose', () => ({
   ...jest.requireActual('mongoose'),
   startSession: jest.fn(),
@@ -35,6 +40,7 @@ const mockFindByIdWithSession = (model: any, returnedData: any) => {
   });
 };
 
+
 describe('VoucherService - issueVoucher', () => {
   let session: any;
   let validEventId: string;
@@ -46,6 +52,7 @@ describe('VoucherService - issueVoucher', () => {
 
     // Default mock user
     (UserService.getUserById as jest.Mock).mockResolvedValue({ email: 'test@example.com' });
+
     (emailQueue.add as jest.Mock).mockResolvedValue(true);
   });
 

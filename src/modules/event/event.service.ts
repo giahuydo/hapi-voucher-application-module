@@ -1,6 +1,7 @@
 import {Event} from  '../event/event.model';
 import { CreateEventInput , UpdateEventInput } from './dto/event.input';
-import { LockResponseDTO } from './dto/event.dto';
+import { EventDTO, LockResponseDTO } from './dto/event.dto';
+import { toEventDTO } from './event.transformer';
 
 
 const EDIT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -145,7 +146,7 @@ export const maintainEditLock = async (
  * 📥 Get all events
  */
 export const getAllEvents = async () => {
-  return await Event.find();
+  return await Event.find().lean();
 };
 
 /**
@@ -154,7 +155,7 @@ export const getAllEvents = async () => {
  * @return The event object if found, otherwise null
  * */
 export const getEventById = async (id: string) => {
-  return await Event.findById(id);
+  return await Event.findById(id).lean();
 };
 
 
@@ -169,7 +170,8 @@ export const createEvent = async (input: CreateEventInput) => {
     issuedCount: 0 // default value if needed
   });
 
-  return await created.save();
+  const saved = await created.save();
+  return toEventDTO(saved);   
 };
 
 /**
@@ -178,11 +180,16 @@ export const createEvent = async (input: CreateEventInput) => {
  * @param input - Partial update data
  * @returns Mongo document if updated, otherwise null
  */
-export const updateEvent = async (id: string, input: UpdateEventInput) => {
-  return await Event.findByIdAndUpdate(id, input, {
+export const updateEvent = async (
+  id: string,
+  input: UpdateEventInput
+): Promise<EventDTO | null> => {
+  const updated = await Event.findByIdAndUpdate(id, input, {
     new: true,
-    runValidators: true
+    runValidators: true,
   });
+
+  return updated ? toEventDTO(updated) : null;
 };
 
 /**
@@ -191,5 +198,7 @@ export const updateEvent = async (id: string, input: UpdateEventInput) => {
  * @returns The deleted event document if found, otherwise null
  */
 export const deleteEvent = async (id: string) => {
-  return await Event.findByIdAndDelete(id);
+  const deleted = await Event.findByIdAndDelete(id);
+  return deleted ? toEventDTO(deleted) : null;
 };
+

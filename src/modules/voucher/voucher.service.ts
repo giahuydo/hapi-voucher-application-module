@@ -73,12 +73,12 @@ export const issueVoucher = async (
 };
 
 export const getAllVouchers = async (): Promise<VoucherDTO[]> => {
-  const vouchers = await Voucher.find();
+  const vouchers = await Voucher.find().lean();
   return vouchers.map(transformVoucher);
 };
 
 export const getVoucherById = async (id: string): Promise<VoucherDTO | null> => {
-  const voucher = await Voucher.findById(id);
+  const voucher = await Voucher.findById(id).lean();
   return voucher ? transformVoucher(voucher) : null;
 };
 
@@ -98,6 +98,6 @@ export const markVoucherAsUsed = async (
 export const getVouchersByEventId = async (
   eventId: string
 ): Promise<VoucherDTO[]> => {
-  const vouchers = await Voucher.find({ eventId });
+  const vouchers = await Voucher.find({ eventId }).lean();
   return vouchers.map(transformVoucher);
 };

@@ -8,16 +8,21 @@ import bcrypt from 'bcryptjs';
  * Create a new user
  */
 export async function createUser(data: CreateUserInput): Promise<UserDTO> {
+  const exists = await User.findOne({ email: data.email }).lean();
+  if (exists) {
+    throw new Error('Email already exists');
+  }
+
   const user = new User(data);
-  const savedUser = await user.save();
-  return transformUser(savedUser);
+  const saved = await user.save();
+  return transformUser(saved);
 }
 
 /**
  * Get all users
  */
 export async function getAllUsers(): Promise<UserDTO[]> {
-  const users = await User.find();
+  const users = await User.find().lean();
   return users.map(transformUser);
 }
 
@@ -25,7 +30,7 @@ export async function getAllUsers(): Promise<UserDTO[]> {
  * Get user by ID
  */
 export async function getUserById(id: string): Promise<UserDTO | null> {
-  const user = await User.findById(id);
+  const user = await User.findById(id).lean();
   return user ? transformUser(user) : null;
 }
 
