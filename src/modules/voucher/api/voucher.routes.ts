@@ -1,5 +1,5 @@
 import { ServerRoute } from '@hapi/hapi';
-import Joi from 'joi';
+import * as Joi from 'joi';
 import {
   requestVoucher,
   getAllVouchers,
@@ -10,7 +10,7 @@ import {
   issueVoucherSchema,
   getVoucherByIdParamsSchema,
   markVoucherUsedParamsSchema,
-  getVouchersByEventParamsSchema
+  IdParamSchema
 } from '../dto/voucher.input';
 
 const voucherRoutes: ServerRoute[] = [
@@ -23,10 +23,8 @@ const voucherRoutes: ServerRoute[] = [
       description: 'Issue a new voucher for a specific event',
       notes: 'Requires userId in payload. Returns 456 if event is full.',
       validate: {
-        params: getVouchersByEventParamsSchema,
-        payload: Joi.object({
-          userId: Joi.string().length(24).required().description('User ID'),
-        }),
+        params: IdParamSchema,
+        payload: issueVoucherSchema,
         failAction: (request, h, err) => {
           throw err;
         }

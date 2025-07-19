@@ -5,8 +5,9 @@ import { RegisterInput, LoginInput } from './dto/auth.input';
 import { AuthResponseDTO } from './dto/auth.dto';
 import { transformAuthUser } from './auth.transformer';
 import { ValidationError, NotFoundError } from '../../../utils/errorHandler';
+import dotenv from 'dotenv';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret'; // đặt vào .env
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 /**
  * Register new user

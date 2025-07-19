@@ -9,7 +9,7 @@ import {
 export const userRoutes: ServerRoute[] = [
   {
     method: 'POST',
-    path: '/api/users',
+    path: '/users',
     handler: UserHandler.createUserHandler,
     options: {
       tags: ['api', 'users'],
@@ -22,7 +22,7 @@ export const userRoutes: ServerRoute[] = [
   },
   {
     method: 'GET',
-    path: '/api/users',
+    path: '/users',
     handler: UserHandler.getAllUsersHandler,
     options: {
       tags: ['api', 'users'],
@@ -32,7 +32,7 @@ export const userRoutes: ServerRoute[] = [
   },
   {
     method: 'GET',
-    path: '/api/users/{id}',
+    path: '/users/{id}',
     handler: UserHandler.getUserByIdHandler,
     options: {
       tags: ['api', 'users'],
@@ -45,7 +45,7 @@ export const userRoutes: ServerRoute[] = [
   },
   {
     method: 'PUT',
-    path: '/api/users/{id}',
+    path: '/users/{id}',
     handler: UserHandler.updateUserHandler,
     options: {
       tags: ['api', 'users'],
@@ -59,7 +59,7 @@ export const userRoutes: ServerRoute[] = [
   },
   {
     method: 'DELETE',
-    path: '/api/users/{id}',
+    path: '/users/{id}',
     handler: UserHandler.deleteUserHandler,
     options: {
       tags: ['api', 'users'],
@@ -70,4 +70,13 @@ export const userRoutes: ServerRoute[] = [
       },
     },
   },
+  {
+    method: 'GET',
+    path: '/users/me',
+    options: {
+      handler: UserHandler.getMeHandler,
+      tags: ['api', 'user'],
+      description: 'Get current user info'
+    }
+  }
 ];

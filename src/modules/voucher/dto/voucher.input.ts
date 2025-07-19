@@ -5,12 +5,11 @@ import Joi from 'joi';
  * Used in: POST /api/vouchers/issue
  */
 export interface IssueVoucherInput {
-  eventId: string;
   userId: string;
+  eventId: string; 
 }
 
-export const issueVoucherSchema = Joi.object<IssueVoucherInput>({
-  eventId: Joi.string().length(24).required().description('Event MongoDB ObjectId'),
+export const issueVoucherSchema = Joi.object<{userId: string}>({
   userId: Joi.string().length(24).required().description('User MongoDB ObjectId'),
 });
 
@@ -49,3 +48,9 @@ export interface GetVouchersByEventParams {
 export const getVouchersByEventParamsSchema = Joi.object<GetVouchersByEventParams>({
   eventId: Joi.string().length(24).required().description('Event MongoDB ObjectId'),
 });
+
+
+export const IdParamSchema = Joi.object<{ eventId: string }>({
+  eventId: Joi.string().length(24).required().description('MongoDB ObjectId of the event'),
+});
+

@@ -1,4 +1,4 @@
-import Joi from 'joi';
+import * as Joi from 'joi';
 
 /**
  * Input data for creating a new user.
@@ -49,4 +49,8 @@ export interface UpdatePasswordInput {
 export const updatePasswordSchema = Joi.object<UpdatePasswordInput>({
   currentPassword: Joi.string().required().description('Current password'),
   newPassword: Joi.string().min(6).required().description('New password (min 6 characters)'),
+});
+
+export const idParamSchema = Joi.object<{ id: string }>({
+  id: Joi.string().length(24).required().description('MongoDB ObjectId of the user'),
 });

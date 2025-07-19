@@ -1,32 +1,38 @@
-import mongoose from 'mongoose';
-import { Voucher } from './voucher.model';
-import { transformVoucher } from './voucher.transformer';
-import { VoucherDTO } from './dto/voucher.dto';
-import { IssueVoucherInput } from './dto/voucher.input';
-import {Event} from '../event/event.model';
-import * as UserService from '../user/user.service';
-import emailQueue from '../../../jobs/queues/email.queue';
-import logger from '../../../utils/logger';
-import { AppError, NotFoundError, ValidationError } from '../../../utils/errorHandler';
+import mongoose from "mongoose";
+import { Voucher } from "./voucher.model";
+import { transformVoucher } from "./voucher.transformer";
+import { VoucherDTO } from "./dto/voucher.dto";
+import { IssueVoucherInput } from "./dto/voucher.input";
+import { Event } from "../event/event.model";
+import * as UserService from "../user/user.service";
+import emailQueue from "../../../jobs/queues/email.queue";
+import logger from "../../../utils/logger";
+import {
+  AppError,
+  NotFoundError,
+  ValidationError,
+} from "../../../utils/errorHandler";
 
 export const issueVoucher = async (
-  input: IssueVoucherInput
+  input: IssueVoucherInput,
+  retryCount = 0
 ): Promise<{ code: string }> => {
   const { eventId, userId } = input;
   const session = await mongoose.startSession();
 
+  let committed = false;
   try {
     session.startTransaction();
 
     if (!mongoose.Types.ObjectId.isValid(eventId)) {
-      throw new ValidationError('Invalid event ID format');
+      throw new ValidationError("Invalid event ID format");
     }
 
     const event = await Event.findById(eventId).session(session);
-    if (!event) throw new NotFoundError('Event not found');
+    if (!event) throw new NotFoundError("Event not found");
 
     if (event.issuedCount >= event.maxQuantity) {
-      throw new AppError('Voucher has been exhausted', 456);
+      throw new AppError("Voucher has been exhausted", 456);
     }
 
     const voucherCode = `VC-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -37,8 +43,8 @@ export const issueVoucher = async (
           eventId: event._id,
           code: voucherCode,
           issuedTo: userId,
-          isUsed: false
-        }
+          isUsed: false,
+        },
       ],
       { session }
     );
@@ -47,6 +53,7 @@ export const issueVoucher = async (
     await event.save({ session });
 
     await session.commitTransaction();
+    committed = true;
 
     const user = await UserService.getUserById(userId);
     if (user?.email) {
@@ -55,20 +62,23 @@ export const issueVoucher = async (
 
     return { code: voucherCode };
   } catch (error: any) {
-    await session.abortTransaction();
-
-    // Retry if transient
-    if (
-      error?.name === 'TransientTransactionError' ||
-      error?.name === 'WriteConflict' ||
-      error?.message?.includes('WriteConflict')
-    ) {
-      return await issueVoucher(input);
+    if (!committed) {
+      await session.abortTransaction();
     }
+    // Retry if transient error
+    const isTransient =
+      error?.name === "TransientTransactionError" ||
+      error?.name === "WriteConflict" ||
+      error?.message?.includes("WriteConflict");
 
+    if (isTransient && retryCount < 3) {
+      return await issueVoucher(input, retryCount + 1);
+    }
     throw error;
   } finally {
-    session.endSession();
+    if (session) {
+      session.endSession();
+    }
   }
 };
 
@@ -77,7 +87,9 @@ export const getAllVouchers = async (): Promise<VoucherDTO[]> => {
   return vouchers.map(transformVoucher);
 };
 
-export const getVoucherById = async (id: string): Promise<VoucherDTO | null> => {
+export const getVoucherById = async (
+  id: string
+): Promise<VoucherDTO | null> => {
   const voucher = await Voucher.findById(id).lean();
   return voucher ? transformVoucher(voucher) : null;
 };
@@ -86,13 +98,13 @@ export const markVoucherAsUsed = async (
   id: string
 ): Promise<{ code: number; message: string }> => {
   const voucher = await Voucher.findById(id);
-  if (!voucher) return { code: 404, message: 'Voucher not found' };
-  if (voucher.isUsed) return { code: 409, message: 'Voucher already used' };
+  if (!voucher) return { code: 404, message: "Voucher not found" };
+  if (voucher.isUsed) return { code: 409, message: "Voucher already used" };
 
   voucher.isUsed = true;
   await voucher.save();
 
-  return { code: 200, message: 'Voucher marked as used' };
+  return { code: 200, message: "Voucher marked as used" };
 };
 
 export const getVouchersByEventId = async (

@@ -6,33 +6,38 @@ import Inert from '@hapi/inert';
 import Vision from '@hapi/vision';
 import HapiSwagger from 'hapi-swagger';
 import * as HapiAuthJwt2 from 'hapi-auth-jwt2';
+import AuthJwtPlugin from './src/plugins/auth-jwt.plugin';
 
-// Route modules
 import voucherRoutes from './src/modules/voucher/api/voucher.routes';
 import eventRoutes from './src/modules/event/api/event.routes';
 import authRoutes from './src/modules/auth/api/auth.routes';
+import { userRoutes } from './src/modules/user/api/user.routes';
+import Boom from "@hapi/boom";
+import logger from './utils/logger';
+import { handleError } from "./utils/errorHandler";
 
 console.log('🔧 Initializing server...');
 // Agenda job
 import unlockVoucherLocksJob from './agenda/jobs/unlockVoucherLocks.job';
-
-dotenv.config();
-
 console.log('🔧 Starting server...');
-// JWT validation function
-const validateJWT = async (decoded: any, _request: Hapi.Request, _h: Hapi.ResponseToolkit) => {
-  if (!decoded || !decoded.sub) return { isValid: false };
-  return {
-    isValid: true,
-    credentials: { userId: decoded.sub }
-  };
-};
 
 const init = async () => {
   try {
+    dotenv.config();
     const server = Hapi.server({
       port: process.env.PORT || 3000,
-      host: '0.0.0.0'
+      host: '0.0.0.0',
+      routes: {
+        cors: {
+          origin: ['*'],
+          additionalHeaders: ['authorization', 'content-type'],
+          additionalExposedHeaders: ['authorization'],
+          credentials: true
+        }
+      },
+      debug: {
+        request: ['error', 'uncaught'],
+      },
     });
     console.log(`🔧 Initializing Hapi server on port ${server.settings.port}`);
 
@@ -48,14 +53,9 @@ const init = async () => {
       }
     });
 
-    // 🔐 Auth setup
-    await server.register(HapiAuthJwt2);
-    server.auth.strategy('jwt', 'jwt', {
-      key: process.env.JWT_SECRET || 'default_secret',
-      validate: validateJWT,
-      verifyOptions: { algorithms: ['HS256'] }
-    });
-    console.log('✅ JWT auth strategy registered');
+    await server.register([
+      AuthJwtPlugin,
+    ]);
 
     // Swagger setup
     await server.register([
@@ -87,8 +87,29 @@ const init = async () => {
       options: { ...route.options, auth: false }
     }));
     
-    server.route([...publicAuthRoutes, ...voucherRoutes, ...eventRoutes]);
+    server.route([...publicAuthRoutes, ...voucherRoutes, ...eventRoutes, ...userRoutes]);
     
+
+    server.ext("onPreResponse", (request, h) => {
+      const response = request.response;
+      if (Boom.isBoom(response) || response instanceof Error) {
+        const err = Boom.isBoom(response) ? response : response;
+        const errorPayload = handleError(err);
+        logger.error(
+          `${request.method.toUpperCase()} ${request.path} - status: ${
+            errorPayload.statusCode
+          } - message: ${errorPayload.message}`
+        );
+        return h
+          .response({
+            error: errorPayload.error,
+            message: errorPayload.message,
+          })
+          .code(errorPayload.statusCode);
+      }
+      return h.continue;
+    });
+  
     
     // MongoDB
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/voucher_app';
@@ -120,5 +141,6 @@ process.on('unhandledRejection', (err) => {
   console.error('💥 Unhandled Rejection:', err);
   process.exit(1);
 });
+
 
 init();

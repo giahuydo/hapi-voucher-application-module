@@ -54,3 +54,14 @@ export const deleteUserHandler = async (req: Request, h: ResponseToolkit) => {
     return h.response({ message: err.message }).code(400);
   }
 };
+
+export const getMeHandler = async (req: Request, h: ResponseToolkit) => {
+  const { userId, email, name, role } = req.auth.credentials;
+
+  return {
+    id: userId,
+    name,
+    email,
+    role,
+  };
+};

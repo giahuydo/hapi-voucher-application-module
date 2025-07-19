@@ -2,7 +2,7 @@ import { User, UserDocument } from './user.model';
 import { CreateUserInput, UpdateUserInput } from './dto/user.input';
 import { UserDTO } from './dto/user.dto';
 import { transformUser } from './user.transformer';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 
 /**
  * Create a new user
@@ -25,7 +25,6 @@ export async function getAllUsers(): Promise<UserDTO[]> {
   const users = await User.find().lean();
   return users.map(transformUser);
 }
-
 /**
  * Get user by ID
  */

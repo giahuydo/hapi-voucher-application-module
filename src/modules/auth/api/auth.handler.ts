@@ -16,8 +16,8 @@ export const registerHandler = async (req: Request, h: ResponseToolkit) => {
 export const loginHandler = async (req: Request, h: ResponseToolkit) => {
   try {
     const input = req.payload as LoginInput;
-    const token = await AuthService.login(input);
-    return h.response({ success: true, token }).code(200);
+    const { token, user } = await AuthService.login(input);
+    return h.response({ success: true, token, user }).code(200);
   } catch (err: any) {
     return h.response({ success: false, message: err.message }).code(401);
   }
