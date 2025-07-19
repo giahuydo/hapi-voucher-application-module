@@ -14,47 +14,8 @@ import {
   ValidationError,
 } from "../../../utils/errorHandler";
 
-export const issueVoucherCore = async (
-  eventId: string,
-  userId: string,
-  session: mongoose.ClientSession
-): Promise<string> => {
-  logger.info('[issueVoucherCore] 🔍 Validate eventId');
-  if (!mongoose.Types.ObjectId.isValid(eventId)) {
-    throw new ValidationError("Invalid event ID format");
-  }
+import { issueVoucherCore } from "./voucher.core";
 
-  logger.info(`[issueVoucherCore] 🔍 Finding event: ${eventId}`);
-  const event = await Event.findById(eventId).session(session);
-  if (!event) throw new NotFoundError("Event not found");
-
-  logger.info(`[issueVoucherCore] 🎯 Event found: ${event.name}`);
-  if (event.issuedCount >= event.maxQuantity) {
-    throw new AppError("Voucher has been exhausted", 456);
-  }
-
-  const code = generateVoucherCode();
-  logger.info(`[issueVoucherCore] 🏷️ Generated code: ${code}`);
-
-  await Voucher.create(
-    [
-      {
-        eventId: event._id,
-        code,
-        issuedTo: userId,
-        isUsed: false,
-      },
-    ],
-    { session }
-  );
-  logger.info(`[issueVoucherCore] ✅ Voucher created in DB`);
-
-  event.issuedCount += 1;
-  await event.save({ session });
-  logger.info(`[issueVoucherCore] 🧮 Event.issuedCount updated to ${event.issuedCount}`);
-
-  return code;
-};
 
 export const issueVoucher = async (
   input: IssueVoucherInput,
