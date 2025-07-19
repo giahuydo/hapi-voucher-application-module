@@ -3,7 +3,7 @@
     "target": "ES2020", // Set the JavaScript language version output (e.g. async/await supported)
     "module": "CommonJS", // Use CommonJS module system (default for Node.js)
     "strict": true, // Enable all strict type-checking options
-    // "esModuleInterop": true,               // Allow default imports from CommonJS modules
+    "esModuleInterop": true,               // Allow default imports from CommonJS modules
     "outDir": "./dist", // Output directory for compiled JavaScript files
     "rootDir": ".", // Specify the root folder of your TypeScript source files
     "resolveJsonModule": true, // Enable importing .json files as modules
@@ -12,7 +12,6 @@
   },
   "include": ["src/**/*", "utils"], // Include all TypeScript files inside the src/ folder
   "exclude": ["node_modules"], // Exclude dependencies from compilation
-
-  "esModuleInterop": false,
-  "allowSyntheticDefaultImports": false
+  // "esModuleInterop": false,
+  // "allowSyntheticDefaultImports": false
 }

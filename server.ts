@@ -1,6 +1,6 @@
 import Hapi from '@hapi/hapi';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 import { Agenda } from 'agenda';
 import Inert from '@hapi/inert';
 import Vision from '@hapi/vision';

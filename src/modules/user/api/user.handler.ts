@@ -1,6 +1,7 @@
 import { Request, ResponseToolkit } from '@hapi/hapi';
 import * as UserService from '../user.service';
-import { CreateUserInput } from '../dto/user.input';
+import { CreateUserInput, UpdateUserInput } from '../dto/user.input';
+import logger from '../../../../utils/logger';
 
 export const createUserHandler = async (req: Request, h: ResponseToolkit) => {
   try {
@@ -25,6 +26,11 @@ export const getUserByIdHandler = async (req: Request, h: ResponseToolkit) => {
 
 export const getAllUsersHandler = async (_req: Request, h: ResponseToolkit) => {
   try {
+   
+    // logger.info('🧪 typeof UserService:', typeof UserService); // object
+    // logger.info('🧪 Keys in UserService:', Object.keys(UserService)); // [ 'getAllUsers', ... ]
+    // logger.info('🧪 getAllUsers typeof:', typeof UserService.getAllUsers); // function
+
     const users = await UserService.getAllUsers();
     return h.response(users);
   } catch (err: any) {
@@ -35,7 +41,7 @@ export const getAllUsersHandler = async (_req: Request, h: ResponseToolkit) => {
 export const updateUserHandler = async (req: Request, h: ResponseToolkit) => {
   try {
     const id = req.params.id;
-    const data = req.payload;
+    const data = req.payload as UpdateUserInput; // Cast to UpdateUserInput
     const updatedUser = await UserService.updateUser(id, data);
     if (!updatedUser) return h.response({ message: 'User not found' }).code(404);
     return h.response(updatedUser);

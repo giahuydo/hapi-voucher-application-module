@@ -1,5 +1,6 @@
 import { Request, ResponseToolkit } from '@hapi/hapi';
 import * as VoucherService from '../voucher.service';
+import { IssueVoucherInput } from '../dto/voucher.input';
 
 /**
  * Get all vouchers
@@ -74,17 +75,11 @@ export const useVoucher = async (req: Request, h: ResponseToolkit) => {
 export const requestVoucher = async (req: Request, h: ResponseToolkit) => {
   try {
     const { eventId } = req.params as { eventId: string };
-    const { userId } = req.payload as { userId: string };
+    const { userId } = req.auth.credentials as { userId: string };
 
-    interface IssueVoucherResult {
-      success: boolean;
-      message?: string;
-      code: string;
-      data?: any; // Adjust the type of data as necessary
-    }
-
-    const { code } = await VoucherService.issueVoucher({ eventId, userId });
-
+    const input: IssueVoucherInput = { eventId, userId };
+    const { code } = await VoucherService.issueVoucher(input);
+    
     return h.response({
       success: true,
       message: 'Voucher issued successfully',
