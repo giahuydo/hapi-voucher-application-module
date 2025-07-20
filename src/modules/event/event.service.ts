@@ -2,6 +2,7 @@ import {Event} from  '../event/event.model';
 import { CreateEventInput , UpdateEventInput } from './dto/event.input';
 import { EventDTO, LockResponseDTO } from './dto/event.dto';
 import { toEventDTO } from './event.transformer';
+import {logger} from '../../../utils/logger';
 
 
 const EDIT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -59,7 +60,6 @@ export const requestEditLock = async (
     lockUntil: event.editLockAt ?? null
   };
 };
-
 /**
  * Release edit lock for a specific event.
  */
@@ -67,9 +67,12 @@ export const releaseEditLock = async (
   eventId: string,
   userId: string
 ): Promise<LockResponseDTO> => {
+  logger.info(`[ReleaseEditLock] User ${userId} is requesting to release lock on event ${eventId}`);
+
   const event = await Event.findById(eventId);
 
   if (!event) {
+    logger.warn(`[ReleaseEditLock] Event not found: ${eventId}`);
     return {
       code: 404,
       message: 'Event not found',
@@ -78,10 +81,16 @@ export const releaseEditLock = async (
     };
   }
 
-  if (event.editingBy === userId) {
+  logger.info(`[ReleaseEditLock] Current editingBy: ${event.editingBy}, Requesting user: ${userId}`);
+  logger.info(`[ReleaseEditLock] editingBy: ${event.editingBy} (${typeof event.editingBy})`);
+  logger.info(`[ReleaseEditLock] userId: ${userId} (${typeof userId})`);
+  logger.info(`[ReleaseEditLock] Equal? ${event.editingBy === userId}`);
+
+  if (event.editingBy?.toString() === userId.toString()) {
     event.editingBy = null;
     event.editLockAt = null;
     await event.save();
+    logger.info(`[ReleaseEditLock] Lock released by user ${userId} on event ${eventId}`);
     return {
       code: 200,
       message: 'Edit lock released',
@@ -90,6 +99,7 @@ export const releaseEditLock = async (
     };
   }
 
+  logger.warn(`[ReleaseEditLock] User ${userId} is not the editing user of event ${eventId}`);
   return {
     code: 403,
     message: 'You are not the editing user',
@@ -97,6 +107,8 @@ export const releaseEditLock = async (
     lockUntil: event.editLockAt ?? null
   };
 };
+import { logger } from '@/utils/logger';
+
 /**
  * Extend (maintain) edit lock if still valid.
  */
@@ -105,9 +117,15 @@ export const maintainEditLock = async (
   userId: string
 ): Promise<LockResponseDTO> => {
   const now = new Date();
+
+  logger.info(`[MaintainEditLock] ⏳ Now: ${now.toISOString()}`);
+  logger.info(`[MaintainEditLock] 🧑‍💻 userId: ${userId}`);
+  logger.info(`[MaintainEditLock] 🔍 Checking eventId: ${eventId}`);
+
   const event = await Event.findById(eventId);
 
   if (!event) {
+    logger.warn(`[MaintainEditLock] ❌ Event not found: ${eventId}`);
     return {
       code: 404,
       message: 'Event not found',
@@ -116,14 +134,21 @@ export const maintainEditLock = async (
     };
   }
 
+  logger.info(`[MaintainEditLock] 📄 Current editingBy: ${event.editingBy}`);
+  logger.info(`[MaintainEditLock] ⏱ Current lockUntil: ${event.editLockAt}`);
+
   const isValid =
-    event.editingBy === userId &&
+    event.editingBy?.toString() === userId.toString() &&
     event.editLockAt &&
     event.editLockAt > now;
+
+  logger.info(`[MaintainEditLock] ✅ isValid: ${isValid}`);
 
   if (isValid) {
     event.editLockAt = new Date(now.getTime() + EDIT_TIMEOUT_MS);
     await event.save();
+
+    logger.info(`[MaintainEditLock] 🔁 Lock extended to: ${event.editLockAt?.toISOString()}`);
 
     return {
       code: 200,
@@ -133,6 +158,8 @@ export const maintainEditLock = async (
     };
   }
 
+  logger.warn(`[MaintainEditLock] ⚠️ Edit lock not valid or expired for user: ${userId}`);
+
   return {
     code: 409,
     message: 'Edit lock not valid or expired',
@@ -140,8 +167,6 @@ export const maintainEditLock = async (
     lockUntil: event.editLockAt ?? null
   };
 };
-
-
 /**
  * 📥 Get all events
  */

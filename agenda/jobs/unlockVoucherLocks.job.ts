@@ -1,5 +1,5 @@
 import { Agenda } from 'agenda';
-import Event from '../../src/models/event.model';
+import {Event} from '../../src/modules/event/event.model';
 
 export default function unlockVoucherLocksJob(agenda: Agenda): void {
   agenda.define('auto-unlock-edit-events', async () => {

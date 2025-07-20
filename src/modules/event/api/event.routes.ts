@@ -17,8 +17,6 @@ import {
   eventIdLockParamSchema,
 } from '../dto/event.input';
 
-import { User } from '../../user/user.model';
-
 const eventRoutes: ServerRoute[] = [
   {
     method: 'GET',
