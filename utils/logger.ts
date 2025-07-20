@@ -1,26 +1,21 @@
-import { createLogger, format, transports } from 'winston';
+// src/utils/logger.ts
+import winston from 'winston';
 
-const logger = createLogger({
+export const logger = winston.createLogger({
   level: 'info',
-  format: format.combine(
-    format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    format.errors({ stack: true }),
-    // format.splat(),
-    format.json()
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.printf(({ level, message, timestamp }) => {
+      return `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+    })
   ),
   transports: [
-    new transports.Console({
-      format: format.combine(
-        format.colorize(),
-        format.simple()
-      )
-    }),
-    new transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new transports.File({ filename: 'logs/combined.log' })
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' }),
   ],
-  exceptionHandlers: [
-    new transports.File({ filename: 'logs/exceptions.log' })
-  ]
 });
 
-export default logger; 
+// Optional: log to console in development
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console());
+}

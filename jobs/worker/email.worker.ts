@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import Bull from 'bull';
 import emailQueue from '../queues/email.queue';
 import { sendEmail } from '../services/email.service';
-import logger from '../../utils/logger';
+import {logger} from '../../utils/logger';
 
 dotenv.config();
 

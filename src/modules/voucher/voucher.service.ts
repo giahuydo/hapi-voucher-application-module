@@ -7,7 +7,7 @@ import { Event } from "../event/event.model";
 import * as UserService from "../user/user.service";
 import emailQueue from "../../../jobs/queues/email.queue";
 import { generateVoucherCode } from "../../../utils/generateVoucherCode";
-import logger from "../../../utils/logger";
+import {logger} from "../../../utils/logger";
 import {
   AppError,
   NotFoundError,
@@ -61,6 +61,7 @@ export const issueVoucher = async (
     logger.info('[issueVoucher] 🔚 Session ended');
   }
 };
+
 export const sendVoucherEmail = async (userId: string, code: string) => {
   logger.info(`[sendVoucherEmail] 📧 Preparing to send to user ${userId}`);
   const user = await UserService.getUserById(userId);

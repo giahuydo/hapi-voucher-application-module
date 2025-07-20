@@ -96,7 +96,7 @@ describe('VoucherService.issueVoucher', () => {
       await VoucherService.issueVoucher({ eventId, userId });
     } catch (err: any) {
       expect(err).toBeInstanceOf(AppError);
-      expect(err.status).toBe(456);
+      expect(err.statusCode).toBe(456);
     }
 
     expect(session.abortTransaction).toHaveBeenCalled();
@@ -170,7 +170,7 @@ describe('VoucherService.issueVoucher', () => {
     rejected.forEach((r) => {
       const error = r.status === 'rejected' ? r.reason : null;
       expect(error).toBeInstanceOf(AppError);
-      expect(error?.status).toBe(456);
+      expect(error?.statusCode).toBe(456);
     });
   });
 

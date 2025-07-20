@@ -152,6 +152,7 @@ const voucherRoutes: ServerRoute[] = [
       }
     }
   }
+  
 ];
 
 export default voucherRoutes;

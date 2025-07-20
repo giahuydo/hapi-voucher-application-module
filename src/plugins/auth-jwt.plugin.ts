@@ -1,7 +1,7 @@
 import { Request, ResponseToolkit, Server } from '@hapi/hapi';
 import HapiAuthJwt2 from 'hapi-auth-jwt2';
 import { User } from '../modules/user/user.model'; // import model thật
-import logger from '../../utils/logger';
+import {logger} from '../../utils/logger';
 
 const validate = async (
   decoded: any,

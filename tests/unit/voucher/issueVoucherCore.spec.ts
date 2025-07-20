@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { issueVoucherCore } from '../../../src/modules/voucher/voucher.core';
 import { Event } from '../../../src/modules/event/event.model';
 import { Voucher } from '../../../src/modules/voucher/voucher.model';
-import { ValidationError, NotFoundError, AppError } from '../../../src/utils/errorHandler';
+import { ValidationError, NotFoundError, AppError } from '../../..//utils/errorHandler';
 
 jest.mock('../../../src/modules/event/event.model');
 jest.mock('../../../src/modules/voucher/voucher.model');

@@ -1,7 +1,7 @@
 import { Request, ResponseToolkit } from '@hapi/hapi';
 import * as UserService from '../user.service';
 import { CreateUserInput, UpdateUserInput } from '../dto/user.input';
-import logger from '../../../../utils/logger';
+import {logger} from '../../../../utils/logger';
 
 export const createUserHandler = async (req: Request, h: ResponseToolkit) => {
   try {

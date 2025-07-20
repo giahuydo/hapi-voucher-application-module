@@ -5,17 +5,12 @@ import { Agenda } from 'agenda';
 import Inert from '@hapi/inert';
 import Vision from '@hapi/vision';
 import HapiSwagger from 'hapi-swagger';
-import * as HapiAuthJwt2 from 'hapi-auth-jwt2';
 import AuthJwtPlugin from './src/plugins/auth-jwt.plugin';
-
+import ErrorHandlerPlugin from './src/plugins/error-handler.plugin';
 import voucherRoutes from './src/modules/voucher/api/voucher.routes';
 import eventRoutes from './src/modules/event/api/event.routes';
 import authRoutes from './src/modules/auth/api/auth.routes';
-import { userRoutes } from './src/modules/user/api/user.routes';
-import Boom from "@hapi/boom";
-import logger from './utils/logger';
-import { handleError } from "./utils/errorHandler";
-
+import { userRoutes } from './src/modules/user/api/user.routes'
 console.log('🔧 Initializing server...');
 // Agenda job
 import unlockVoucherLocksJob from './agenda/jobs/unlockVoucherLocks.job';
@@ -55,6 +50,7 @@ const init = async () => {
 
     await server.register([
       AuthJwtPlugin,
+      ErrorHandlerPlugin
     ]);
 
     // Swagger setup
@@ -88,28 +84,7 @@ const init = async () => {
     }));
     
     server.route([...publicAuthRoutes, ...voucherRoutes, ...eventRoutes, ...userRoutes]);
-    
-
-    server.ext("onPreResponse", (request, h) => {
-      const response = request.response;
-      if (Boom.isBoom(response) || response instanceof Error) {
-        const err = Boom.isBoom(response) ? response : response;
-        const errorPayload = handleError(err);
-        logger.error(
-          `${request.method.toUpperCase()} ${request.path} - status: ${
-            errorPayload.statusCode
-          } - message: ${errorPayload.message}`
-        );
-        return h
-          .response({
-            error: errorPayload.error,
-            message: errorPayload.message,
-          })
-          .code(errorPayload.statusCode);
-      }
-      return h.continue;
-    });
-  
+    console.log('✅ Routes registered');
     
     // MongoDB
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/voucher_app';

@@ -1,6 +1,7 @@
 import { Request, ResponseToolkit } from '@hapi/hapi';
 import * as VoucherService from '../voucher.service';
 import { IssueVoucherInput } from '../dto/voucher.input';
+import { AppError } from '../../../../utils/errorHandler';
 
 /**
  * Get all vouchers
@@ -62,10 +63,11 @@ export const useVoucher = async (req: Request, h: ResponseToolkit) => {
       message: result.message,
     }).code(result.code);
   } catch (err: any) {
+    const statusCode = err instanceof AppError ? err.statusCode : 500;
     return h.response({
       success: false,
       message: err.message || 'Internal server error',
-    }).code(500);
+    }).code(statusCode);
   }
 };
 

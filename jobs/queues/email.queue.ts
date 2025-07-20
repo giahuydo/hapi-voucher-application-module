@@ -1,6 +1,6 @@
 import Bull from 'bull';
 import dotenv from 'dotenv';
-import logger from '../../utils/logger';
+import {logger} from '../../utils/logger';
 
 dotenv.config();
 
@@ -48,7 +48,5 @@ emailQueue.on('failed', (job, err) => {
     jobId: job?.id
   });
 });
-
-logger.info('Email queue initialized');
 
 export default emailQueue;

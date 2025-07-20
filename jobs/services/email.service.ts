@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { AppError, ValidationError } from '../../utils/errorHandler';
-import logger from '../../utils/logger';
+import {logger} from '../../utils/logger';
 
 interface EmailData {
   to: string;
