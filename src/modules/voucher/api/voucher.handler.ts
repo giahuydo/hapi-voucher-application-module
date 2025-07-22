@@ -8,17 +8,10 @@ import { formatSuccess, formatError } from '../../../../utils/responseFormatter'
  */
 export const getAllVouchers = async (_req: Request, h: ResponseToolkit) => {
   try {
-    const vouchers = await VoucherService.getAllVouchers();
-    return h.response({
-      success: true,
-      message: 'Fetched all vouchers successfully',
-      data: vouchers,
-    });
-  } catch (err: any) {
-    return h.response({
-      success: false,
-      message: err.message || 'Internal server error',
-    }).code(500);
+    const vouchers = await VoucherService.getAllVouchers(_req.query);
+    return formatSuccess(h, vouchers, 'Fetched all vouchers successfully');
+  } catch (err) {
+    return formatError(h, err);
   }
 };
 
@@ -29,24 +22,9 @@ export const getVoucherById = async (req: Request, h: ResponseToolkit) => {
   try {
     const { id } = req.params;
     const voucher = await VoucherService.getVoucherById(id);
-
-    if (!voucher) {
-      return h.response({
-        success: false,
-        message: 'Voucher not found',
-      }).code(404);
-    }
-
-    return h.response({
-      success: true,
-      message: 'Voucher found',
-      data: voucher,
-    });
-  } catch (err: any) {
-    return h.response({
-      success: false,
-      message: err.message || 'Internal server error',
-    }).code(500);
+    return formatSuccess(h, voucher, 'Voucher found');
+  } catch (err) {
+    return formatError(h, err);
   }
 };
 
@@ -84,17 +62,9 @@ export const requestVoucher = async (req: Request, h: ResponseToolkit) => {
 
     const input: IssueVoucherInput = { eventId, userId };
     const { code } = await VoucherService.issueVoucher(input);
-    
-    return h.response({
-      success: true,
-      message: 'Voucher issued successfully',
-      data: { code }
-    });
 
-  } catch (err: any) {
-    return h.response({
-      success: false,
-      message: err.message || 'Internal server error',
-    }).code(500);
+    return formatSuccess(h, { code }, 'Voucher issued successfully');
+  } catch (err) {
+    return formatError(h, err);
   }
 };

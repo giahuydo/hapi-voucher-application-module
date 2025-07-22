@@ -25,7 +25,6 @@ const voucherRoutes: ServerRoute[] = [
       notes: 'Requires userId in payload. Returns 456 if event is full.',
       validate: {
         params: IdParamSchema,
-        payload: issueVoucherSchema,
         failAction: (request, h, err) => {
           throw err;
         }

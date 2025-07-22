@@ -8,9 +8,8 @@ import emailQueue from "../../../jobs/queues/email.queue";
 import {logger} from "../../../utils/logger";
 import {NotFoundError} from "../../../utils/errorHandler";
 import { createError } from  "../../../utils/errorHandler";
-
 import { issueVoucherCore } from "./voucher.core";
-
+import { PaginationQuery, paginateModel } from "../../../utils/PaginationQuery";
 
 export const issueVoucher = async (
   input: IssueVoucherInput,
@@ -68,16 +67,19 @@ export const sendVoucherEmail = async (userId: string, code: string) => {
     logger.warn(`[sendVoucherEmail] ⚠️ User ${userId} has no email`);
   }
 };
-export const getAllVouchers = async (): Promise<VoucherDTO[]> => {
-  const vouchers = await Voucher.find().lean();
-  return vouchers.map(transformVoucher);
-};
 
-export const getVoucherById = async (
-  id: string
-): Promise<VoucherDTO | null> => {
+export const getAllVouchers = (query: PaginationQuery) =>
+  paginateModel({
+    model: Voucher,
+    query,
+    transform: transformVoucher,
+    searchableFields: ['code', 'issuedTo'],
+  });
+
+export const getVoucherById = async (id: string): Promise<VoucherDTO> => {
   const voucher = await Voucher.findById(id).lean();
-  return voucher ? transformVoucher(voucher) : null;
+  if (!voucher) throw new NotFoundError('Voucher not found');
+  return transformVoucher(voucher);
 };
 
 export const markVoucherAsUsed = async (
