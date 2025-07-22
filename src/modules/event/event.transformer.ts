@@ -16,7 +16,7 @@ type EventInput = Partial<{
   editLockAt?: Date | null;
 }>;
 
-export const toEventDTO = (doc: EventDocument | EventInput): EventDTO => {
+export const transformEvent = (doc: EventDocument | EventInput): EventDTO => {
   return {
     id: doc._id?.toString?.() ?? '',
     name: doc.name ?? '',
@@ -27,9 +27,4 @@ export const toEventDTO = (doc: EventDocument | EventInput): EventDTO => {
     editingBy: doc.editingBy?.toString?.() ?? null,
     editLockAt: doc.editLockAt ?? null,
   };
-};
-export const toEventDTOList = (
-  docs: (EventDocument | EventInput)[]
-): EventDTO[] => {
-  return docs.map(toEventDTO);
 };

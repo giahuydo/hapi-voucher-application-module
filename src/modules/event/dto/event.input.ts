@@ -33,17 +33,12 @@ export interface EventIdParam {
   id: string;
 }
 
-export const eventIdParamSchema = Joi.object<EventIdParam>({
-  id: Joi.string().length(24).required().description('MongoDB ObjectId of the event'),
-});
-
 /**
- * Input for validating params with { eventId }
+ * Validate route parameter: eventId (MongoDB ObjectId)
  */
-export interface EventLockParam {
-  eventId: string;
-}
-
-export const eventIdLockParamSchema = Joi.object<EventLockParam>({
-  eventId: Joi.string().length(24).required().description('Event ID for edit lock'),
+export const eventIdParamSchema = Joi.object({
+  eventId: Joi.string()
+    .pattern(/^[a-f\d]{24}$/i)
+    .required()
+    .description('MongoDB ObjectId of the event'),
 });

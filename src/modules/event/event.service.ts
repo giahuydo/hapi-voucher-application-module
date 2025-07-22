@@ -1,8 +1,10 @@
 import {Event} from  '../event/event.model';
 import { CreateEventInput , UpdateEventInput } from './dto/event.input';
 import { EventDTO, LockResponseDTO } from './dto/event.dto';
-import { toEventDTO } from './event.transformer';
-import {logger} from '../../../utils/logger';
+import { transformEvent } from './event.transformer';
+import {logger} from "../../../utils/logger";
+import { PaginationQuery, paginateModel } from "../../../utils/PaginationQuery";
+import {NotFoundError, createError} from "../../../utils/errorHandler";
 
 
 const EDIT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -107,7 +109,6 @@ export const releaseEditLock = async (
     lockUntil: event.editLockAt ?? null
   };
 };
-import { logger } from '@/utils/logger';
 
 /**
  * Extend (maintain) edit lock if still valid.
@@ -167,20 +168,24 @@ export const maintainEditLock = async (
     lockUntil: event.editLockAt ?? null
   };
 };
-/**
- * 📥 Get all events
- */
-export const getAllEvents = async () => {
-  return await Event.find().lean();
-};
+
+export const getAllEvents = (query: PaginationQuery) =>
+  paginateModel({
+    model: Event,
+    query,
+    transform: transformEvent,
+    searchableFields: ['code', 'issuedTo'],
+});
 
 /**
- * 📥 Get event by ID
- * @param id - The ID of the event to retrieve
- * @return The event object if found, otherwise null
- * */
-export const getEventById = async (id: string) => {
-  return await Event.findById(id).lean();
+  * 📌 Get event by ID
+  * @param eventId - Event ID
+  * @returns The Event document transformed to DTO
+  */
+export const getEventById = async (eventId: string): Promise<EventDTO> => {
+  const event = await Event.findById(eventId).lean();
+  if (!event) throw new NotFoundError('Event not found');
+  return transformEvent(event);
 };
 
 
@@ -196,7 +201,7 @@ export const createEvent = async (input: CreateEventInput) => {
   });
 
   const saved = await created.save();
-  return toEventDTO(saved);   
+  return transformEvent(saved);   
 };
 
 /**
@@ -214,16 +219,16 @@ export const updateEvent = async (
     runValidators: true,
   });
 
-  return updated ? toEventDTO(updated) : null;
+  return updated ? transformEvent(updated) : null;
 };
 
 /**
  * Delete an event by ID
- * @param id - The ID of the event to delete
+ * @param eventId - The ID of the event to delete
  * @returns The deleted event document if found, otherwise null
  */
-export const deleteEvent = async (id: string) => {
-  const deleted = await Event.findByIdAndDelete(id);
-  return deleted ? toEventDTO(deleted) : null;
+export const deleteEvent = async (eventId: string) => {
+  const deleted = await Event.findByIdAndDelete(eventId);
+  return deleted ? transformEvent(deleted) : null;
 };
 

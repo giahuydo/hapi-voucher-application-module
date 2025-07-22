@@ -6,8 +6,7 @@ import { IssueVoucherInput } from "./dto/voucher.input";
 import * as UserService from "../user/user.service";
 import emailQueue from "../../../jobs/queues/email.queue";
 import {logger} from "../../../utils/logger";
-import {NotFoundError} from "../../../utils/errorHandler";
-import { createError } from  "../../../utils/errorHandler";
+import {NotFoundError, createError} from "../../../utils/errorHandler";
 import { issueVoucherCore } from "./voucher.core";
 import { PaginationQuery, paginateModel } from "../../../utils/PaginationQuery";
 

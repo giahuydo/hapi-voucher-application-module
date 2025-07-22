@@ -47,12 +47,12 @@ export interface PaginationQuery {
   
   export async function paginateModel<T>({
     model,
-    query,
+    query = {},
     transform,
     searchableFields = [],
   }: PaginateOptions<T>): Promise<PaginatedResult<any>> {
-    const page = Math.max(1, Number(query.page) || 1);
-    const limit = Math.max(1, Number(query.limit) || 10);
+    const page = Math.max(1, Number(query.page ?? 1));
+    const limit = Math.max(1, Number(query.limit ?? 10));
     const skip = (page - 1) * limit;
   
     const sort: Record<string, 1 | -1> = {

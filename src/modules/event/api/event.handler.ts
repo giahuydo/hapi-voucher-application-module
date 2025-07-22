@@ -1,37 +1,35 @@
 import { Request, ResponseToolkit } from '@hapi/hapi';
 import * as EventService from '../event.service';
 import { CreateEventInput, UpdateEventInput } from '../dto/event.input';
-import { toEventDTO, toEventDTOList } from '../event.transformer';
+import { transformEvent } from '../event.transformer';
 import { LockResponseDTO } from '../dto/event.dto';
 import { handleError } from '../../../../utils/errorHandler';
 import { logger } from '../../../../utils/logger';
+import { formatSuccess, formatError } from '../../../../utils/responseFormatter';
+
 
 /**
  * Get all events
  */
 export const getAllEvents = async (_req: Request, h: ResponseToolkit) => {
   try {
-    const events = await EventService.getAllEvents();
-    return h.response({ success: true, data: toEventDTOList(events) });
-  } catch (err: any) {
-    return h.response({ success: false, message: err.message }).code(500);
+    const vouchers = await EventService.getAllEvents(_req.query);
+    return formatSuccess(h, vouchers, 'Fetched all vouchers successfully');
+  } catch (err) {
+    return formatError(h, err);
   }
 };
-
 
 /**
  * Get event by ID
  */
 export const getEventById = async (req: Request, h: ResponseToolkit) => {
   try {
-    const id = req.params.id;
-    const event = await EventService.getEventById(id);
-    if (!event) {
-      return h.response({ success: false, message: 'Event not found' }).code(404);
-    }
-    return h.response({ success: true, data: event });
-  } catch (err: any) {
-    return h.response({ success: false, message: err.message }).code(400);
+    const { eventId } = req.params;
+    const event = await EventService.getEventById(eventId);
+    return formatSuccess(h, event, 'Event found');
+  } catch (err) {
+    return formatError(h, err);
   }
 };
 
@@ -42,7 +40,7 @@ export const createEvent = async (req: Request, h: ResponseToolkit) => {
   try {
     const input = req.payload as CreateEventInput;
     const event = await EventService.createEvent(input);
-    return h.response({ success: true, data: toEventDTO(event) }).code(201);
+    return h.response({ success: true, data: transformEvent(event) }).code(201);
   } catch (err: any) {
     return h.response({ success: false, message: err.message }).code(400);
   }
@@ -51,37 +49,29 @@ export const createEvent = async (req: Request, h: ResponseToolkit) => {
 /**
  * Update event by ID
  */
+
 export const updateEvent = async (req: Request, h: ResponseToolkit) => {
   try {
-    const id = req.params.id;
+    const { eventId } = req.params;
     const input = req.payload as UpdateEventInput;
 
-    const updated = await EventService.updateEvent(id, input);
-    if (!updated) {
-      return h.response({ success: false, message: 'Event not found' }).code(404);
-    }
-
-    return h.response({ success: true, data: toEventDTO(updated) });
-  } catch (err: any) {
-    return h.response({ success: false, message: err.message }).code(400);
+    const updatedEvent = await EventService.updateEvent(eventId, input);
+    return formatSuccess(h , (updatedEvent), 'Event updated successfully');
+  } catch (err) {
+    return formatError(h, err);
   }
 };
 
-
 /**
- * Delete event
+ * Delete event by ID
  */
 export const deleteEvent = async (req: Request, h: ResponseToolkit) => {
   try {
-    const id = req.params.id;
-    const deleted = await EventService.deleteEvent(id);
-    if (!deleted) {
-      return h.response({ success: false, message: 'Event not found' }).code(404);
-    }
-
-    return h.response({ success: true, message: 'Event deleted successfully' });
-  } catch (err: any) {
-    return h.response({ success: false, message: err.message }).code(400);
+    const { eventId } = req.params;
+    await EventService.deleteEvent(eventId);
+    return formatSuccess(h, null, 'Event deleted successfully');
+  } catch (err) {
+    return formatError(h, err);
   }
 };
 

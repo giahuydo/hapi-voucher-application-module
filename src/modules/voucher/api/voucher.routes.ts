@@ -7,12 +7,7 @@ import {
   useVoucher,
   releaseVoucher
 } from './voucher.handler';
-import {
-  issueVoucherSchema,
-  getVoucherByIdParamsSchema,
-  markVoucherUsedParamsSchema,
-  IdParamSchema
-} from '../dto/voucher.input';
+import {IdVoucherParamsSchema,eventIdParamSchema} from '../dto/voucher.input';
 
 const voucherRoutes: ServerRoute[] = [
   // 🎟️ Issue a new voucher
@@ -24,7 +19,7 @@ const voucherRoutes: ServerRoute[] = [
       description: 'Issue a new voucher for a specific event',
       notes: 'Requires userId in payload. Returns 456 if event is full.',
       validate: {
-        params: IdParamSchema,
+        params: eventIdParamSchema,
         failAction: (request, h, err) => {
           throw err;
         }
@@ -93,7 +88,7 @@ const voucherRoutes: ServerRoute[] = [
       tags: ['api', 'vouchers'],
       description: 'Get a voucher by ID',
       validate: {
-        params: getVoucherByIdParamsSchema,
+        params: IdVoucherParamsSchema,
         failAction: (request, h, err) => {
           throw err;
         }
@@ -135,7 +130,7 @@ const voucherRoutes: ServerRoute[] = [
       tags: ['api', 'vouchers'],
       description: 'Mark a voucher as used',
       validate: {
-        params: markVoucherUsedParamsSchema,
+        params: IdVoucherParamsSchema,
         failAction: (request, h, err) => {
           throw err;
         }
@@ -160,7 +155,7 @@ const voucherRoutes: ServerRoute[] = [
       tags: ['api', 'vouchers'],
       description: 'Mark a voucher as used',
       validate: {
-        params: markVoucherUsedParamsSchema,
+        params: IdVoucherParamsSchema,
         failAction: (request, h, err) => {
           throw err;
         }

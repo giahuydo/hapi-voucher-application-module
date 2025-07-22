@@ -14,7 +14,6 @@ import {
   createEventSchema,
   updateEventSchema,
   eventIdParamSchema,
-  eventIdLockParamSchema,
 } from '../dto/event.input';
 
 const eventRoutes: ServerRoute[] = [
@@ -29,7 +28,7 @@ const eventRoutes: ServerRoute[] = [
   },
   {
     method: 'GET',
-    path: '/events/{id}',
+    path: '/events/{eventId}',
     options: {
       tags: ['api', 'event'],
       description: 'Get event by ID',
@@ -55,7 +54,7 @@ const eventRoutes: ServerRoute[] = [
   },
   {
     method: 'PUT',
-    path: '/events/{id}',
+    path: '/events/{eventId}',
     options: {
       tags: ['api', 'event'],
       description: 'Update event',
@@ -69,7 +68,7 @@ const eventRoutes: ServerRoute[] = [
   },
   {
     method: 'DELETE',
-    path: '/events/{id}',
+    path: '/events/{eventId}',
     options: {
       tags: ['api', 'event'],
       description: 'Delete event',
@@ -88,7 +87,7 @@ const eventRoutes: ServerRoute[] = [
       tags: ['api', 'event', 'edit-lock'],
       description: 'Request edit lock',
       validate: {
-        params: eventIdLockParamSchema,
+        params: eventIdParamSchema,
         failAction: (request, h, err) => { throw err; }
       },
       handler: requestEditLock
@@ -102,7 +101,7 @@ const eventRoutes: ServerRoute[] = [
       tags: ['api', 'event', 'edit-lock'],
       description: 'Release edit lock',
       validate: {
-        params: eventIdLockParamSchema,
+        params: eventIdParamSchema,
         failAction: (request, h, err) => { throw err; }
       },
       handler: releaseEditLock
@@ -116,7 +115,7 @@ const eventRoutes: ServerRoute[] = [
       tags: ['api', 'event', 'edit-lock'],
       description: 'Maintain edit lock',
       validate: {
-        params: eventIdLockParamSchema,
+        params: eventIdParamSchema,
         failAction: (request, h, err) => { throw err; }
       },
       handler: maintainEditLock
