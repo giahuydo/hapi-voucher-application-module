@@ -1,7 +1,7 @@
 import { Request, ResponseToolkit } from '@hapi/hapi';
 import * as VoucherService from '../voucher.service';
 import { IssueVoucherInput } from '../dto/voucher.input';
-import { AppError } from '../../../../utils/errorHandler';
+import { formatSuccess, formatError } from '../../../../utils/responseFormatter';
 
 /**
  * Get all vouchers
@@ -56,20 +56,23 @@ export const getVoucherById = async (req: Request, h: ResponseToolkit) => {
 export const useVoucher = async (req: Request, h: ResponseToolkit) => {
   try {
     const { id } = req.params;
-    const result = await VoucherService.markVoucherAsUsed(id);
-
-    return h.response({
-      success: result.code === 200,
-      message: result.message,
-    }).code(result.code);
-  } catch (err: any) {
-    const statusCode = err instanceof AppError ? err.statusCode : 500;
-    return h.response({
-      success: false,
-      message: err.message || 'Internal server error',
-    }).code(statusCode);
+    const voucher = await VoucherService.markVoucherAsUsed(id);
+    return formatSuccess(h, voucher, 'Voucher marked as used');
+  } catch (err) {
+    return formatError(h, err);
   }
 };
+
+export const releaseVoucher = async (req: Request, h: ResponseToolkit) => {
+  try {
+    const { id } = req.params;
+    const voucher = await VoucherService.releaseVoucher(id);
+    return formatSuccess(h, voucher, 'Voucher marked as used');
+  } catch (err) {
+    return formatError(h, err);
+  }
+};
+
 
 /**
  * Issue a new voucher for an event

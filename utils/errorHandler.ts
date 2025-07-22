@@ -1,4 +1,16 @@
 import { logger } from './logger';
+
+
+export function createError(
+  name: string,
+  message: string,
+  statusCode = 500
+): AppError {
+  const err = new AppError(message, statusCode);
+  err.name = name;
+  return err;
+}
+
 export class AppError extends Error {
   statusCode: number;
   isOperational: boolean;
@@ -27,7 +39,6 @@ export class ValidationError extends AppError {
 export function handleError(err: any) {
   const stack = err.stack || new Error().stack;
 
-  // Ưu tiên AppError
   if (err instanceof AppError) {
     logger.error(`[AppError] ${err.message} (status: ${err.statusCode})\n${stack}`);
     return {
@@ -48,7 +59,6 @@ export function handleError(err: any) {
     };
   }
 
-  // Map lỗi theo err.name
   const errorMap: Record<string, { statusCode: number; error: string; defaultMessage: string; logLevel: 'warn' | 'error' }> = {
     MongoError:            { statusCode: 409, error: 'DuplicateKeyError',    defaultMessage: 'Resource already exists', logLevel: 'warn' },
     CastError:             { statusCode: 400, error: 'CastError',            defaultMessage: 'Invalid resource ID',     logLevel: 'warn' },
@@ -72,7 +82,6 @@ export function handleError(err: any) {
     };
   }
 
-  // Lỗi không xác định
   const unknownMessage = err.message || 'Internal server error';
   logger.error(`[UnknownError] ${unknownMessage}\n${stack}`);
   return {

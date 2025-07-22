@@ -3,16 +3,11 @@ import { Voucher } from "./voucher.model";
 import { transformVoucher } from "./voucher.transformer";
 import { VoucherDTO } from "./dto/voucher.dto";
 import { IssueVoucherInput } from "./dto/voucher.input";
-import { Event } from "../event/event.model";
 import * as UserService from "../user/user.service";
 import emailQueue from "../../../jobs/queues/email.queue";
-import { generateVoucherCode } from "../../../utils/generateVoucherCode";
 import {logger} from "../../../utils/logger";
-import {
-  AppError,
-  NotFoundError,
-  ValidationError,
-} from "../../../utils/errorHandler";
+import {NotFoundError} from "../../../utils/errorHandler";
+import { createError } from  "../../../utils/errorHandler";
 
 import { issueVoucherCore } from "./voucher.core";
 
@@ -87,15 +82,26 @@ export const getVoucherById = async (
 
 export const markVoucherAsUsed = async (
   id: string
-): Promise<{ code: number; message: string }> => {
+): Promise<VoucherDTO> => {
   const voucher = await Voucher.findById(id);
-  if (!voucher) return { code: 404, message: "Voucher not found" };
-  if (voucher.isUsed) return { code: 409, message: "Voucher already used" };
+  if (!voucher) throw new NotFoundError('Voucher not found');
+  if (voucher.isUsed) throw createError('ConflictError', 'Voucher already used', 409);
 
   voucher.isUsed = true;
+  const saved = await voucher.save();
+
+  return transformVoucher(saved);
+};
+
+export const releaseVoucher = async (id: string): Promise<VoucherDTO> => {
+  const voucher = await Voucher.findById(id);
+  if (!voucher) throw new NotFoundError('Voucher not found');
+  if (!voucher.isUsed) throw createError('BadRequest', 'Voucher is already unused', 400);
+
+  voucher.isUsed = false;
   await voucher.save();
 
-  return { code: 200, message: "Voucher marked as used" };
+  return transformVoucher(voucher);
 };
 
 export const getVouchersByEventId = async (

@@ -4,7 +4,8 @@ import {
   requestVoucher,
   getAllVouchers,
   getVoucherById,
-  useVoucher
+  useVoucher,
+  releaseVoucher
 } from './voucher.handler';
 import {
   issueVoucherSchema,
@@ -141,6 +142,31 @@ const voucherRoutes: ServerRoute[] = [
         }
       },
       handler: useVoucher,
+      plugins: {
+        'hapi-swagger': {
+          responses: {
+            200: { description: 'Voucher marked as used' },
+            404: { description: 'Voucher not found' },
+            409: { description: 'Voucher already used' }
+          }
+        }
+      }
+    }
+  },
+  // ✅ Release voucher as used
+  {
+    method: 'PATCH',
+    path: '/vouchers/{id}/release',
+    options: {
+      tags: ['api', 'vouchers'],
+      description: 'Mark a voucher as used',
+      validate: {
+        params: markVoucherUsedParamsSchema,
+        failAction: (request, h, err) => {
+          throw err;
+        }
+      },
+      handler: releaseVoucher,
       plugins: {
         'hapi-swagger': {
           responses: {
