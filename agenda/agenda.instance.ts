@@ -12,15 +12,17 @@ const createAgenda = async (): Promise<Agenda> => {
     console.log('✅ MongoDB connected for Agenda');
   }
 
-  // Create agenda instance
-  const agenda = new Agenda({
-    mongo: mongoose.connection.db as any,
-    processEvery: '5 seconds',
-    defaultConcurrency: 1,
-    maxConcurrency: 5,
-    lockLimit: 0,
-  });
 
+    // Create Agenda instance
+    const agenda = new Agenda({
+      db: {
+        address: process.env.MONGO_URI as string,
+        collection: "agendaJobs",
+      },
+      processEvery: "10 seconds",
+      defaultConcurrency: 1,
+      maxConcurrency: 5,
+    });
   // Event hooks
   agenda.on('start', (job) => {
     console.log(`🔄 Job "${job.attrs.name}" started`);
