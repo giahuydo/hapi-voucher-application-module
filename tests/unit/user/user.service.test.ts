@@ -8,7 +8,7 @@ const mockUsers = [
 
 describe('UserService.getAllUsers', () => {
   afterEach(() => {
-    jest.restoreAllMocks(); // reset mock sau mỗi test
+    jest.restoreAllMocks();
   });
 
   it('should return transformed list of users', async () => {

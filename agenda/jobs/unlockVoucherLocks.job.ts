@@ -1,19 +1,10 @@
-import { Agenda } from 'agenda';
-import {Event} from '../../src/modules/event/event.model';
+import { Agenda, Job } from 'agenda';
 
-export default function unlockVoucherLocksJob(agenda: Agenda): void {
-  agenda.define('auto-unlock-edit-events', async () => {
-    try {
-      console.log('🔓 Running auto-unlock job...');
-      
-      // For now, just log that the job is running
-      // This can be expanded when we add editingBy and editLockAt fields to Event model
-      console.log('✅ Auto-unlock job completed successfully');
-    } catch (error) {
-      console.error('❌ Auto-unlock job failed:', error);
-    }
+export default async function unlockVoucherLocksJob(agenda: Agenda): Promise<void> {
+  agenda.define('auto-unlock-edit-events', async (job: Job) => {
+    console.log('🔓 Running auto-unlock job...');
   });
 
-  // Schedule job to run every minute
-  agenda.every('1 minute', 'auto-unlock-edit-events');
+  await agenda.every('10 seconds', 'auto-unlock-edit-events');
+  console.log('✅ Job auto-unlock-edit-events scheduled every 10 seconds');
 }
