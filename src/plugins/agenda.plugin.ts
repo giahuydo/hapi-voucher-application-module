@@ -1,7 +1,4 @@
 import { Plugin } from "@hapi/hapi";
-import { Agenda } from "agenda";
-import mongoose from "mongoose";
-import unlockVoucherLocksJob from "../../agenda/jobs/unlockVoucherLocks.job";
 import createAgenda from "../../agenda/agenda.instance";
 
 const AgendaPlugin: Plugin<undefined> = {

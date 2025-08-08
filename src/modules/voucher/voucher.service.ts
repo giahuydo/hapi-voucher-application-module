@@ -72,7 +72,12 @@ export const getAllVouchers = (query: PaginationQuery) =>
     model: Voucher,
     query,
     transform: transformVoucher,
-    searchableFields: ['code', 'issuedTo'],
+    searchableFields: ['code', 'issuedTo', 'eventId'],
+    fieldTypes: {
+      code: { type: 'string' },
+      issuedTo: { type: 'objectId' },
+      eventId: { type: 'objectId' }
+    }
   });
 
 export const getVoucherById = async (id: string): Promise<VoucherDTO> => {

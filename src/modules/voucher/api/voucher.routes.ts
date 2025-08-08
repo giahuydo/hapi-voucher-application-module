@@ -7,7 +7,7 @@ import {
   useVoucher,
   releaseVoucher
 } from './voucher.handler';
-import {IdVoucherParamsSchema,eventIdParamSchema} from '../dto/voucher.input';
+import {IdVoucherParamsSchema, eventIdParamSchema, getAllVouchersQuerySchema} from '../dto/voucher.input';
 
 const voucherRoutes: ServerRoute[] = [
   // 🎟️ Issue a new voucher
@@ -53,7 +53,14 @@ const voucherRoutes: ServerRoute[] = [
     path: '/vouchers',
     options: {
       tags: ['api', 'vouchers'],
-      description: 'Get all vouchers',
+      description: 'Get all vouchers with optional filtering and pagination',
+      notes: 'Supports pagination, filtering by eventId, issuedTo, isUsed, and search by code',
+      validate: {
+        query: getAllVouchersQuerySchema,
+        failAction: (request, h, err) => {
+          throw err;
+        }
+      },
       handler: getAllVouchers,
       plugins: {
         'hapi-swagger': {
