@@ -4,7 +4,8 @@ import { EventDTO, LockResponseDTO } from './dto/event.dto';
 import { transformEvent } from './event.transformer';
 import {logger} from "../../../utils/logger";
 import { PaginationQuery, paginateModel } from "../../../utils/PaginationQuery";
-import {NotFoundError, createError} from "../../../utils/errorHandler";
+import {NotFoundError, ValidationError, createError} from "../../../utils/errorHandler";
+import mongoose from 'mongoose';
 
 
 const EDIT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -174,8 +175,13 @@ export const getAllEvents = (query: PaginationQuery) =>
     model: Event,
     query,
     transform: transformEvent,
-    searchableFields: ['code', 'issuedTo'],
-});
+    searchableFields: ['name', 'issuedCount', 'maxQuantity'],
+    fieldTypes: {
+      name: { type: 'string' },
+      issuedCount: { type: 'number', operators: ['gte', 'lte', 'gt', 'lt'] },
+      maxQuantity: { type: 'number', operators: ['gte', 'lte', 'gt', 'lt'] }
+    }
+  });
 
 /**
   * 📌 Get event by ID
@@ -213,13 +219,22 @@ export const createEvent = async (input: CreateEventInput) => {
 export const updateEvent = async (
   id: string,
   input: UpdateEventInput
-): Promise<EventDTO | null> => {
-  const updated = await Event.findByIdAndUpdate(id, input, {
-    new: true,
-    runValidators: true,
-  });
+): Promise<EventDTO> => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ValidationError('Invalid event ID');
+  }
 
-  return updated ? transformEvent(updated) : null;
+  const updated = await Event.findByIdAndUpdate(
+    id,
+    { $set: input },
+    { new: true, runValidators: true }
+  ).lean();
+
+  if (!updated) {
+    throw new NotFoundError('Event not found');
+  }
+
+  return transformEvent(updated);
 };
 
 /**
@@ -227,8 +242,15 @@ export const updateEvent = async (
  * @param eventId - The ID of the event to delete
  * @returns The deleted event document if found, otherwise null
  */
-export const deleteEvent = async (eventId: string) => {
-  const deleted = await Event.findByIdAndDelete(eventId);
-  return deleted ? transformEvent(deleted) : null;
-};
+export const deleteEvent = async (id: string): Promise<EventDTO> => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ValidationError('Invalid event ID');
+  }
 
+  const deleted = await Event.findByIdAndDelete(id);
+  if (!deleted) {
+    throw new NotFoundError('Event not found');
+  }
+
+  return transformEvent(deleted.toObject());
+};

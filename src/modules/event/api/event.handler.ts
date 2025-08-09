@@ -3,18 +3,38 @@ import * as EventService from '../event.service';
 import { CreateEventInput, UpdateEventInput } from '../dto/event.input';
 import { transformEvent } from '../event.transformer';
 import { LockResponseDTO } from '../dto/event.dto';
-import { handleError } from '../../../../utils/errorHandler';
+import { NotFoundError, handleError } from '../../../../utils/errorHandler';
 import { logger } from '../../../../utils/logger';
 import { formatSuccess, formatError } from '../../../../utils/responseFormatter';
+import { parseSearchParameters } from '../../../../utils/PaginationQuery';
 
 
 /**
  * Get all events
  */
-export const getAllEvents = async (_req: Request, h: ResponseToolkit) => {
+export const getAllEvents = async (req: Request, h: ResponseToolkit) => {
   try {
-    const vouchers = await EventService.getAllEvents(_req.query);
-    return formatSuccess(h, vouchers, 'Fetched all vouchers successfully');
+    // Define searchable fields and their types for events
+    const searchableFields = ['name', 'issuedCount', 'maxQuantity'];
+    const fieldTypes = {
+      name: { type: 'string' as const },
+      issuedCount: { type: 'number' as const, operators: ['gte', 'lte', 'gt', 'lt'] },
+      maxQuantity: { type: 'number' as const, operators: ['gte', 'lte', 'gt', 'lt'] }
+    };
+    
+    // Parse dynamic search parameters with allowed fields and types
+    const { paginationQuery, searchFields } = parseSearchParameters(req.query, searchableFields, fieldTypes);
+    
+    // Merge searchFields into paginationQuery
+    const query = {
+      ...paginationQuery,
+      searchFields
+    };
+
+    logger.info(`[getAllEvents] Query: ${JSON.stringify(query)}`);
+    
+    const events = await EventService.getAllEvents(query);
+    return formatSuccess(h, events, 'Fetched all events successfully');
   } catch (err) {
     return formatError(h, err);
   }
@@ -56,12 +76,11 @@ export const updateEvent = async (req: Request, h: ResponseToolkit) => {
     const input = req.payload as UpdateEventInput;
 
     const updatedEvent = await EventService.updateEvent(eventId, input);
-    return formatSuccess(h , (updatedEvent), 'Event updated successfully');
+    return formatSuccess(h, updatedEvent, 'Event updated successfully');
   } catch (err) {
     return formatError(h, err);
   }
 };
-
 /**
  * Delete event by ID
  */

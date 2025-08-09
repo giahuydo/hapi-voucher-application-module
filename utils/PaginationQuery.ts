@@ -9,12 +9,13 @@ export interface PaginationQuery {
     sortOrder?: 'asc' | 'desc';
     search?: string;           // text search (optional)
     filters?: Record<string, any>; // dynamic filters e.g. { isUsed: true, eventId: 'xyz' }
-    searchFields?: Record<string, string>; // dynamic search fields e.g. { code: 'ABC123', issuedTo: 'user123' }
+    searchFields?: Record<string, any>; // dynamic search fields e.g. { code: 'ABC123', issuedTo: 'user123', issuedCount: { $gte: 10 } }
   }
 
 export interface FieldType {
     type: 'string' | 'objectId' | 'boolean' | 'number';
     exact?: boolean; // for string fields, whether to use exact match or regex
+    operators?: string[]; // for numeric fields, allowed operators like ['gte', 'lte', 'gt', 'lt']
 }
 
   export interface PaginatedResult<T> {
@@ -55,7 +56,7 @@ export interface FieldType {
     fieldTypes: Record<string, FieldType> = {}
   ): {
     paginationQuery: PaginationQuery;
-    searchFields: Record<string, string>;
+    searchFields: Record<string, any>;
   } {
     const paginationQuery: PaginationQuery = {
       page: query.page ? Number(query.page) : undefined,
@@ -66,19 +67,38 @@ export interface FieldType {
       filters: {},
     };
 
-    const searchFields: Record<string, string> = {};
+    const searchFields: Record<string, any> = {};
 
     // Extract search.field parameters for allowed fields only
     Object.keys(query).forEach(key => {
       if (key.startsWith('search.')) {
         const field = key.slice(7); // Remove 'search.'
         const value = query[key];
-        if (value && typeof value === 'string' && value.trim()) {
-          // Only allow search on searchable fields
-          if (searchableFields.includes(field)) {
-            searchFields[field] = value.trim();
+        
+        if (value !== undefined && value !== null && value !== '') {
+          // Handle numeric operators (e.g., search.issuedCount.gte)
+          if (field.includes('.')) {
+            const [baseField, operator] = field.split('.');
+            if (searchableFields.includes(baseField)) {
+              const fieldType = fieldTypes[baseField];
+              if (fieldType?.type === 'number' && fieldType.operators?.includes(operator)) {
+                if (!searchFields[baseField]) {
+                  searchFields[baseField] = {};
+                }
+                searchFields[baseField][`$${operator}`] = Number(value);
+              } else {
+                logger.warn(`Operator '${operator}' not allowed for field '${baseField}'`);
+              }
+            } else {
+              logger.warn(`Search field '${baseField}' is not allowed. Allowed fields: ${searchableFields.join(', ')}`);
+            }
           } else {
-            logger.warn(`Search field '${field}' is not allowed. Allowed fields: ${searchableFields.join(', ')}`);
+            // Regular field search
+            if (searchableFields.includes(field)) {
+              searchFields[field] = value;
+            } else {
+              logger.warn(`Search field '${field}' is not allowed. Allowed fields: ${searchableFields.join(', ')}`);
+            }
           }
         }
       }
@@ -156,6 +176,15 @@ export interface FieldType {
         if (fieldType?.type === 'objectId') {
           // For ObjectId fields, use exact match
           filters[field] = value;
+        } else if (fieldType?.type === 'number') {
+          // For numeric fields, handle operators
+          if (typeof value === 'object' && value !== null) {
+            // Value is an object with operators like { $gte: 10, $lte: 50 }
+            filters[field] = value;
+          } else {
+            // Exact match for numeric fields
+            filters[field] = Number(value);
+          }
         } else if (fieldType?.type === 'string' && fieldType.exact) {
           // For string fields with exact match
           filters[field] = value;

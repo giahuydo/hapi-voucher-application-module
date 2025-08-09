@@ -15,9 +15,10 @@ const voucherRoutes: ServerRoute[] = [
     method: 'POST',
     path: '/events/{eventId}/vouchers',
     options: {
+      auth: 'jwt', // Require authentication
       tags: ['api', 'vouchers'],
       description: 'Issue a new voucher for a specific event',
-      notes: 'Requires userId in payload. Returns 456 if event is full.',
+      notes: 'Requires authentication. Returns 456 if event is full.',
       validate: {
         params: eventIdParamSchema,
         failAction: (request, h, err) => {
@@ -37,6 +38,9 @@ const voucherRoutes: ServerRoute[] = [
                 })
               })
             },
+            401: {
+              description: 'Unauthorized - Invalid or missing token'
+            },
             456: {
               description: 'Voucher exhausted'
             }
@@ -52,9 +56,10 @@ const voucherRoutes: ServerRoute[] = [
     method: 'GET',
     path: '/vouchers',
     options: {
+      auth: 'jwt', // Require authentication
       tags: ['api', 'vouchers'],
       description: 'Get all vouchers with optional filtering and pagination',
-      notes: 'Supports pagination, filtering by eventId, issuedTo, isUsed, and search by code',
+      notes: 'Requires authentication. Supports pagination, filtering by eventId, issuedTo, isUsed, and search by code',
       validate: {
         query: getAllVouchersQuerySchema,
         failAction: (request, h, err) => {
@@ -80,6 +85,9 @@ const voucherRoutes: ServerRoute[] = [
                   updatedAt: Joi.date()
                 }))
               })
+            },
+            401: {
+              description: 'Unauthorized - Invalid or missing token'
             }
           }
         }
@@ -92,6 +100,7 @@ const voucherRoutes: ServerRoute[] = [
     method: 'GET',
     path: '/vouchers/{id}',
     options: {
+      auth: 'jwt', // Require authentication
       tags: ['api', 'vouchers'],
       description: 'Get a voucher by ID',
       validate: {
@@ -120,6 +129,9 @@ const voucherRoutes: ServerRoute[] = [
                 })
               })
             },
+            401: {
+              description: 'Unauthorized - Invalid or missing token'
+            },
             404: {
               description: 'Voucher not found'
             }
@@ -134,6 +146,7 @@ const voucherRoutes: ServerRoute[] = [
     method: 'PATCH',
     path: '/vouchers/{id}/use',
     options: {
+      auth: 'jwt', // Require authentication
       tags: ['api', 'vouchers'],
       description: 'Mark a voucher as used',
       validate: {
@@ -147,6 +160,7 @@ const voucherRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: { description: 'Voucher marked as used' },
+            401: { description: 'Unauthorized - Invalid or missing token' },
             404: { description: 'Voucher not found' },
             409: { description: 'Voucher already used' }
           }
@@ -159,8 +173,9 @@ const voucherRoutes: ServerRoute[] = [
     method: 'PATCH',
     path: '/vouchers/{id}/release',
     options: {
+      auth: 'jwt', // Require authentication
       tags: ['api', 'vouchers'],
-      description: 'Mark a voucher as used',
+      description: 'Release a voucher (mark as unused)',
       validate: {
         params: IdVoucherParamsSchema,
         failAction: (request, h, err) => {
@@ -171,9 +186,10 @@ const voucherRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: { description: 'Voucher marked as used' },
+            200: { description: 'Voucher released successfully' },
+            401: { description: 'Unauthorized - Invalid or missing token' },
             404: { description: 'Voucher not found' },
-            409: { description: 'Voucher already used' }
+            409: { description: 'Voucher already released' }
           }
         }
       }

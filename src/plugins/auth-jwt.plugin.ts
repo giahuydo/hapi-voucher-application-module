@@ -62,7 +62,7 @@ export default {
       },
     });
 
-    server.auth.default("jwt");
+    // Don't set default auth - let routes specify their own auth requirements
     console.log("🔧 JWT Auth strategy registered");
   },
 };

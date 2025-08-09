@@ -1,4 +1,4 @@
-export function transformResponse(data: any, message = 'Thành công') {
+export function transformResponse(data: any, message = 'Success') {
   return {
     success: true,
     data,
