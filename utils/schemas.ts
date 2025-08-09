@@ -1,0 +1,245 @@
+import Joi from 'joi';
+
+// ============================================================================
+// SHARED SCHEMAS - Used across all modules (voucher, event, user, etc.)
+// ============================================================================
+
+// Base schemas that can be reused across all modules
+export const baseSchemas = {
+  // MongoDB ObjectId validation
+  objectId: Joi.string()
+    .length(24)
+    .required()
+    .description('MongoDB ObjectId'),
+
+  // Optional ObjectId
+  optionalObjectId: Joi.string()
+    .length(24)
+    .optional()
+    .description('MongoDB ObjectId (optional)'),
+
+  // Pagination parameters
+  pagination: {
+    page: Joi.number().integer().min(1).default(1).description('Page number for pagination'),
+    limit: Joi.number().integer().min(1).max(100).default(10).description('Number of items per page'),
+    sortBy: Joi.string().valid('createdAt', 'updatedAt', 'name', 'code').default('createdAt').description('Sort field'),
+    sortOrder: Joi.string().valid('asc', 'desc').default('desc').description('Sort order'),
+  },
+
+  // Common timestamps
+  timestamps: {
+    createdAt: Joi.date().description('Creation timestamp'),
+    updatedAt: Joi.date().description('Last update timestamp'),
+  },
+
+  // Common search parameters
+  search: {
+    search: Joi.string().min(1).description('General search across all searchable fields'),
+    searchFields: Joi.string().description('JSON string of search fields: {"field": "value"}')
+  }
+};
+
+// ============================================================================
+// SHARED RESPONSE SCHEMAS
+// ============================================================================
+
+export const responseSchemas = {
+  // Success response wrapper
+  success: (dataSchema: Joi.Schema) => Joi.object({
+    success: Joi.boolean().description('Operation success status'),
+    message: Joi.string().description('Success message'),
+    data: dataSchema
+  }),
+
+  // Error response wrapper
+  error: Joi.object({
+    success: Joi.boolean().description('Operation success status (false)'),
+    message: Joi.string().description('Error message')
+  }),
+
+  // Pagination wrapper
+  pagination: Joi.object({
+    page: Joi.number().description('Current page number'),
+    limit: Joi.number().description('Items per page'),
+    total: Joi.number().description('Total number of items'),
+    totalPages: Joi.number().description('Total number of pages'),
+    hasNext: Joi.boolean().description('Whether there is a next page'),
+    hasPrev: Joi.boolean().description('Whether there is a previous page')
+  }),
+
+  // Common object schemas
+  objects: {
+    // User object schema
+    user: Joi.object({
+      id: Joi.string().description('User ID'),
+      name: Joi.string().description('User name'),
+      email: Joi.string().email().description('User email'),
+      role: Joi.string().description('User role'),
+      ...baseSchemas.timestamps
+    }),
+
+    // Event object schema
+    event: Joi.object({
+      id: Joi.string().description('Event ID'),
+      name: Joi.string().description('Event name'),
+      description: Joi.string().optional().description('Event description'),
+      maxQuantity: Joi.number().description('Maximum number of vouchers for this event'),
+      issuedCount: Joi.number().description('Number of vouchers already issued'),
+      isActive: Joi.boolean().description('Whether the event is active'),
+      ...baseSchemas.timestamps
+    }),
+
+    // Voucher object schema
+    voucher: Joi.object({
+      id: Joi.string().description('Voucher ID'),
+      eventId: Joi.string().description('Associated event ID'),
+      issuedTo: Joi.string().description('User ID who received the voucher'),
+      code: Joi.string().description('Unique voucher code'),
+      isUsed: Joi.boolean().description('Whether the voucher has been used'),
+      ...baseSchemas.timestamps
+    })
+  }
+};
+
+// ============================================================================
+// SHARED SWAGGER RESPONSES
+// ============================================================================
+
+export const swaggerResponses = {
+  // Common HTTP responses
+  common: {
+    200: { description: 'Success' },
+    201: { description: 'Created successfully' },
+    400: {
+      description: 'Bad Request',
+      schema: responseSchemas.error
+    },
+    401: {
+      description: 'Unauthorized - Invalid or missing token',
+      schema: responseSchemas.error
+    },
+    403: {
+      description: 'Forbidden - Insufficient permissions',
+      schema: responseSchemas.error
+    },
+    404: {
+      description: 'Resource not found',
+      schema: responseSchemas.error
+    },
+    409: {
+      description: 'Conflict - Resource already exists or in invalid state',
+      schema: responseSchemas.error
+    },
+    422: {
+      description: 'Validation error',
+      schema: Joi.object({
+        success: Joi.boolean(),
+        message: Joi.string(),
+        errors: Joi.array().items(Joi.object({
+          field: Joi.string(),
+          message: Joi.string()
+        }))
+      })
+    },
+    500: {
+      description: 'Internal Server Error',
+      schema: responseSchemas.error
+    }
+  }
+};
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+// Create consistent response schema
+export const createResponseSchema = {
+  // Single item response
+  single: (itemSchema: Joi.Schema) => responseSchemas.success(itemSchema),
+  
+  // List response with pagination
+  list: (itemSchema: Joi.Schema) => responseSchemas.success(Joi.object({
+    data: Joi.array().items(itemSchema),
+    pagination: responseSchemas.pagination
+  })),
+  
+  // Simple success response
+  success: (message?: string) => responseSchemas.success(Joi.object({
+    message: Joi.string().default(message || 'Operation completed successfully')
+  })),
+  
+  // Error response
+  error: (message?: string) => responseSchemas.error.keys({
+    message: Joi.string().default(message || 'An error occurred')
+  })
+};
+
+// Generate search schema dynamically
+export function generateSearchSchema(searchableFields: string[], additionalFields: Record<string, Joi.Schema> = {}) {
+  const searchFields: Record<string, Joi.StringSchema> = {};
+  searchableFields.forEach(field => {
+    searchFields[`search.${field}`] = Joi.string().min(1).description(`Search by ${field} field`);
+  });
+
+  return Joi.object({
+    ...baseSchemas.pagination,
+    ...baseSchemas.search,
+    ...additionalFields,
+    ...searchFields
+  }).unknown(true);
+}
+
+// Create common input schemas
+export const createInputSchemas = {
+  // Path parameter schemas
+  params: {
+    id: (name: string = 'id') => Joi.object({
+      [name]: baseSchemas.objectId
+    }),
+    
+    eventId: Joi.object({
+      eventId: baseSchemas.objectId
+    }),
+    
+    userId: Joi.object({
+      userId: baseSchemas.objectId
+    })
+  },
+
+  // Query parameter schemas
+  query: {
+    // Basic search with pagination
+    basicSearch: (additionalFields: Record<string, Joi.Schema> = {}) => 
+      Joi.object({
+        ...baseSchemas.pagination,
+        ...baseSchemas.search,
+        ...additionalFields
+      }).unknown(true),
+
+    // Event search
+    eventSearch: Joi.object({
+      ...baseSchemas.pagination,
+      ...baseSchemas.search,
+      isActive: Joi.boolean().description('Filter events by active status'),
+      maxQuantity: Joi.number().description('Filter events by maximum quantity')
+    }).unknown(true),
+
+    // Voucher search
+    voucherSearch: Joi.object({
+      ...baseSchemas.pagination,
+      ...baseSchemas.search,
+      eventId: baseSchemas.optionalObjectId.description('Filter vouchers by event ID'),
+      issuedTo: Joi.string().description('Filter vouchers by user ID'),
+      isUsed: Joi.boolean().description('Filter vouchers by usage status')
+    }).unknown(true)
+  },
+
+  // Request body schemas
+  body: {
+    // Common create/update fields
+    name: Joi.string().min(1).max(255).description('Name'),
+    description: Joi.string().max(1000).optional().description('Description'),
+    email: Joi.string().email().description('Email address'),
+    password: Joi.string().min(6).description('Password (min 6 characters)')
+  }
+};

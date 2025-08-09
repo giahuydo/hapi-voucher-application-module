@@ -27,8 +27,6 @@ export const getAllVouchers = async (req: Request, h: ResponseToolkit) => {
       ...paginationQuery,
       searchFields
     };
-
-    logger.info(`[getAllVouchers] Query: ${JSON.stringify(query)}`);
     
     const vouchers = await VoucherService.getAllVouchers(query);
     return formatSuccess(h, vouchers, 'Fetched all vouchers successfully');
@@ -73,6 +71,18 @@ export const releaseVoucher = async (req: Request, h: ResponseToolkit) => {
   }
 };
 
+/**
+ * Delete voucher by ID
+ */
+export const deleteVoucher = async (req: Request, h: ResponseToolkit) => {
+  try {
+    const { id } = req.params;
+    const result = await VoucherService.deleteVoucher(id);
+    return formatSuccess(h, result, 'Voucher deleted successfully');
+  } catch (err) {
+    return formatError(h, err);
+  }
+};
 
 /**
  * Issue a new voucher for an event

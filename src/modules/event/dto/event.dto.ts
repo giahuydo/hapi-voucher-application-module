@@ -4,8 +4,10 @@
 export interface EventDTO {
   id: string;
   name: string;
+  description?: string;
   maxQuantity: number;
   issuedCount: number;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
   editingBy: string | null;

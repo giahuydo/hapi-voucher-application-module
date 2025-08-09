@@ -234,6 +234,8 @@ export const updateEvent = async (
     throw new NotFoundError('Event not found');
   }
 
+
+
   return transformEvent(updated);
 };
 

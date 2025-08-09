@@ -33,8 +33,8 @@ export const getAllEvents = async (req: Request, h: ResponseToolkit) => {
 
     logger.info(`[getAllEvents] Query: ${JSON.stringify(query)}`);
     
-    const events = await EventService.getAllEvents(query);
-    return formatSuccess(h, events, 'Fetched all events successfully');
+    const result = await EventService.getAllEvents(query);
+    return formatSuccess(h, result, 'Fetched all events successfully');
   } catch (err) {
     return formatError(h, err);
   }

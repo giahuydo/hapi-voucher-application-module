@@ -5,9 +5,12 @@ import {
   getAllVouchers,
   getVoucherById,
   useVoucher,
-  releaseVoucher
+  releaseVoucher,
+  deleteVoucher
 } from './voucher.handler';
 import {IdVoucherParamsSchema, eventIdParamSchema, getAllVouchersQuerySchema} from '../dto/voucher.input';
+import { voucherSwaggerResponses } from './voucher.schemas';
+import { swaggerResponses } from '../../../../utils/schemas';
 
 const voucherRoutes: ServerRoute[] = [
   // 🎟️ Issue a new voucher
@@ -15,7 +18,7 @@ const voucherRoutes: ServerRoute[] = [
     method: 'POST',
     path: '/events/{eventId}/vouchers',
     options: {
-      auth: 'jwt', // Require authentication
+      auth: 'jwt',
       tags: ['api', 'vouchers'],
       description: 'Issue a new voucher for a specific event',
       notes: 'Requires authentication. Returns 456 if event is full.',
@@ -28,22 +31,9 @@ const voucherRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: {
-              description: 'Voucher issued successfully',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.object({
-                  code: Joi.string()
-                })
-              })
-            },
-            401: {
-              description: 'Unauthorized - Invalid or missing token'
-            },
-            456: {
-              description: 'Voucher exhausted'
-            }
+            200: voucherSwaggerResponses.issueSuccess,
+            401: swaggerResponses.common[401],
+            456: voucherSwaggerResponses.exhausted
           }
         }
       },
@@ -56,10 +46,10 @@ const voucherRoutes: ServerRoute[] = [
     method: 'GET',
     path: '/vouchers',
     options: {
-      auth: 'jwt', // Require authentication
+      auth: 'jwt',
       tags: ['api', 'vouchers'],
       description: 'Get all vouchers with optional filtering and pagination',
-      notes: 'Requires authentication. Supports pagination, filtering by eventId, issuedTo, isUsed, and search by code',
+      notes: 'Requires authentication. Supports pagination, filtering by eventId, issuedTo, isUsed, and search by code. Demonstrates collection linking by populating event information.',
       validate: {
         query: getAllVouchersQuerySchema,
         failAction: (request, h, err) => {
@@ -70,25 +60,8 @@ const voucherRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: {
-              description: 'List of all vouchers',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.array().items(Joi.object({
-                  id: Joi.string(),
-                  eventId: Joi.string(),
-                  issuedTo: Joi.string(),
-                  code: Joi.string(),
-                  isUsed: Joi.boolean(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                }))
-              })
-            },
-            401: {
-              description: 'Unauthorized - Invalid or missing token'
-            }
+            200: voucherSwaggerResponses.listSuccess,
+            401: swaggerResponses.common[401]
           }
         }
       }
@@ -100,9 +73,10 @@ const voucherRoutes: ServerRoute[] = [
     method: 'GET',
     path: '/vouchers/{id}',
     options: {
-      auth: 'jwt', // Require authentication
+      auth: 'jwt',
       tags: ['api', 'vouchers'],
       description: 'Get a voucher by ID',
+      notes: 'Returns voucher details with populated event information. Demonstrates collection linking between Voucher and Event collections.',
       validate: {
         params: IdVoucherParamsSchema,
         failAction: (request, h, err) => {
@@ -113,28 +87,9 @@ const voucherRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: {
-              description: 'Voucher details',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.object({
-                  id: Joi.string(),
-                  eventId: Joi.string(),
-                  issuedTo: Joi.string(),
-                  code: Joi.string(),
-                  isUsed: Joi.boolean(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                })
-              })
-            },
-            401: {
-              description: 'Unauthorized - Invalid or missing token'
-            },
-            404: {
-              description: 'Voucher not found'
-            }
+            200: voucherSwaggerResponses.singleSuccess,
+            401: swaggerResponses.common[401],
+            404: swaggerResponses.common[404]
           }
         }
       }
@@ -146,7 +101,7 @@ const voucherRoutes: ServerRoute[] = [
     method: 'PATCH',
     path: '/vouchers/{id}/use',
     options: {
-      auth: 'jwt', // Require authentication
+      auth: 'jwt',
       tags: ['api', 'vouchers'],
       description: 'Mark a voucher as used',
       validate: {
@@ -160,20 +115,21 @@ const voucherRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: { description: 'Voucher marked as used' },
-            401: { description: 'Unauthorized - Invalid or missing token' },
-            404: { description: 'Voucher not found' },
-            409: { description: 'Voucher already used' }
+            401: swaggerResponses.common[401],
+            404: swaggerResponses.common[404],
+            409: swaggerResponses.common[409]
           }
         }
       }
     }
   },
+
   // ✅ Release voucher as used
   {
     method: 'PATCH',
     path: '/vouchers/{id}/release',
     options: {
-      auth: 'jwt', // Require authentication
+      auth: 'jwt',
       tags: ['api', 'vouchers'],
       description: 'Release a voucher (mark as unused)',
       validate: {
@@ -187,15 +143,55 @@ const voucherRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: { description: 'Voucher released successfully' },
-            401: { description: 'Unauthorized - Invalid or missing token' },
-            404: { description: 'Voucher not found' },
-            409: { description: 'Voucher already released' }
+            401: swaggerResponses.common[401],
+            404: swaggerResponses.common[404],
+            409: { 
+              description: 'Voucher already released',
+              schema: Joi.object({
+                success: Joi.boolean(),
+                message: Joi.string().default('Voucher already released')
+              })
+            }
+          }
+        }
+      }
+    }
+  },
+
+  // 🗑️ Delete voucher
+  {
+    method: 'DELETE',
+    path: '/vouchers/{id}',
+    options: {
+      auth: 'jwt',
+      tags: ['api', 'vouchers'],
+      description: 'Delete a voucher by ID',
+      notes: 'Requires authentication. Cannot delete vouchers that have been used.',
+      validate: {
+        params: IdVoucherParamsSchema,
+        failAction: (request, h, err) => {
+          throw err;
+        }
+      },
+      handler: deleteVoucher,
+      plugins: {
+        'hapi-swagger': {
+          responses: {
+            200: voucherSwaggerResponses.deleteSuccess,
+            401: swaggerResponses.common[401],
+            404: swaggerResponses.common[404],
+            409: { 
+              description: 'Cannot delete used voucher',
+              schema: Joi.object({
+                success: Joi.boolean(),
+                message: Joi.string().default('Cannot delete a voucher that has been used')
+              })
+            }
           }
         }
       }
     }
   }
-  
 ];
 
 export default voucherRoutes;

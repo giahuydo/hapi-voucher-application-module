@@ -9,4 +9,15 @@ export interface VoucherDTO {
   isUsed: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Event information from populate
+  event?: {
+    id: string;
+    name: string;
+    description?: string;
+    maxQuantity: number;
+    issuedCount: number;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  };
 }
