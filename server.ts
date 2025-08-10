@@ -10,6 +10,7 @@ import AuthJwtPlugin from './src/plugins/auth-jwt.plugin';
 import ErrorHandlerPlugin from './src/plugins/error-handler.plugin';
 import SwaggerPlugin from './src/plugins/swagger.plugin';
 import AgendaPlugin from './src/plugins/agenda.plugin';
+import BullBoardPlugin from './src/plugins/bull-board.plugin';
 
 // Routes
 import voucherRoutes from './src/modules/voucher/api/voucher.routes';
@@ -73,6 +74,7 @@ const init = async () => {
       ErrorHandlerPlugin,
       SwaggerPlugin,
       AgendaPlugin,
+      BullBoardPlugin,
     ]);
     console.log('✅ Plugins registered');
 

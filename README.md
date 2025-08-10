@@ -1,190 +1,348 @@
 # Hapi Voucher Application Module
 
-## Purpose
-- Manage voucher issuance per event, ensuring the maximum quantity is never exceeded.
-- Use MongoDB transactions for data consistency and safety.
-- Demonstrate transaction handling, locking, and concurrent request safety in a real-world scenario.
-- Learn about database transactions, shared transactions, and locked transactions in MongoDB.
+## 🎯 Overview
 
-## Architecture Overview
+A robust Node.js application built with Hapi.js framework for managing voucher systems, events, and user authentication. Features include asynchronous job processing with Bull framework, comprehensive API documentation with Swagger, and a modular architecture.
 
-### Core Components
-- **Event Management**: Define maximum voucher quantities per event
-- **Voucher Issuance**: Atomic transaction-based voucher generation
-- **Concurrency Control**: Handle multiple simultaneous requests safely
-- **Email Notifications**: Background job processing for voucher delivery
+## 🚀 Quick Start
 
-### Transaction Safety
-- **MongoDB Transactions**: Ensure data consistency across voucher creation and event updates
-- **Retry Logic**: Handle transient transaction errors (collisions) with automatic retry
-- **Concurrent Request Handling**: Prevent over-issuing when multiple users request simultaneously
-
-## Test Structure
-
-### Unit Tests
-- **Voucher Service Tests**: Core business logic validation
-- **Event Service Tests**: Event management functionality
-- **User Service Tests**: User management operations
-- **Transaction Tests**: Database transaction safety
-
-### Integration Tests
-- **API Endpoint Tests**: Full request/response cycle validation
-- **Database Integration**: Real MongoDB operations with test data
-
-## Key Voucher Tests
-
-### Core Functionality
-- **Successful voucher issuance**: When quantity remains, a user receives a new voucher code
-- **Out of stock handling**: If all vouchers are issued, respond with error 456
-- **Transaction retry**: On transient transaction errors (e.g., collisions), the service automatically retries
-- **Concurrent requests**: When multiple users request vouchers simultaneously, only one receives a voucher; others get error 456 (no over-issuing)
-
-### Error Handling
-- **Validation errors**: Invalid event ID format
-- **Not found errors**: Event doesn't exist
-- **Business logic errors**: Voucher exhausted (status 456)
-- **Transient errors**: MongoDB transaction conflicts with automatic retry
-
-## Test Results
-
-### Current Test Status
-```
-✓ should issue voucher if event has quantity left
-✕ should throw 456 if event is out of vouchers (status property missing)
-✓ should retry transaction on transient error and succeed
-✕ should only issue up to maxQuantity vouchers even with concurrent requests
-✓ should throw NotFoundError if event does not exist
-✓ should issue voucher but not send email if user has no email
-```
-
-### Known Issues
-- **AppError status property**: Some error instances missing status code (456)
-- **Concurrent request handling**: Need to ensure proper error status codes
-
-## How to Run Tests
-
-### Prerequisites
+### **1. Install Dependencies**
 ```bash
 npm install
-npm install --save-dev ts-jest @types/jest
 ```
 
-### Test Commands
+### **2. Environment Setup**
 ```bash
-# Run all tests
-npx jest
-
-# Run specific test file
-npx jest tests/unit/voucher/issueVoucher.spec.ts --verbose
-
-# Run with coverage
-npx jest --coverage
-
-# Clear cache and run
-npx jest --clearCache
+cp env.example .env
+# Edit .env with your configuration
 ```
 
-### Test Configuration
-```js
-// jest.config.js
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  testMatch: ['**/tests/**/*.test.ts', '**/tests/**/*.spec.ts'],
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts'
-  ]
-};
+### **3. Start Application**
+```bash
+# Development mode
+npm run dev
+
+# Production mode
+npm run build && npm start
 ```
 
-## API Endpoints
+### **4. Start Workers (Background Processing)**
+```bash
+# Start all workers (email + voucher)
+npm run workers
 
-### Voucher Management
-- `POST /events/{eventId}/vouchers` - Request voucher for event
-- `GET /vouchers` - List all vouchers
-- `GET /vouchers/{id}` - Get voucher by ID
-- `PUT /vouchers/{id}/use` - Mark voucher as used
+# Or start individually
+npm run worker:email    # Email worker only
+npm run worker:voucher  # Voucher worker only
+```
 
-### Event Management
-- `GET /events` - List all events
-- `POST /events` - Create new event
+### **5. Access Dashboard**
+- **API**: http://localhost:3000
+- **Queue Dashboard**: http://localhost:3000/admin/queues
+- **Swagger Docs**: http://localhost:3000/documentation
+
+## 📚 Documentation Navigation
+
+### 🔧 **Core Application**
+- **[API Documentation](./docs/API.md)** - Complete API endpoints and usage
+- **[Database Schema](./docs/Database.md)** - MongoDB models and relationships
+- **[Authentication](./docs/Auth.md)** - JWT authentication system
+
+### 🏗️ **Architecture & Design**
+- **[Project Structure](./docs/Structure.md)** - Codebase organization
+- **[Module System](./docs/Modules.md)** - Modular architecture explanation
+- **[Error Handling](./docs/ErrorHandling.md)** - Centralized error management
+
+### 📊 **API & Validation**
+- **[Swagger Documentation](./docs/Swagger.md)** - OpenAPI/Swagger setup
+- **[Schema System](./docs/Schemas.md)** - Joi validation and Swagger schemas
+- **[Response Formatting](./docs/Responses.md)** - Standardized API responses
+
+### 🎫 **Voucher System**
+- **[Voucher Module](./src/modules/voucher/README.md)** - Voucher management system
+- **[Voucher Core](./docs/VoucherCore.md)** - Business logic implementation
+- **[Voucher API](./src/modules/voucher/api/README.md)** - API endpoints and schemas
+
+### 🎪 **Event System**
+- **[Event Module](./src/modules/event/README.md)** - Event management system
+- **[Event API](./src/modules/event/api/README.md)** - Event API documentation
+
+### 👥 **User Management**
+- **[User Module](./src/modules/user/README.md)** - User management system
+- **[User API](./src/modules/user/api/README.md)** - User API documentation
+
+### 🔐 **Authentication & Security**
+- **[Auth Module](./src/modules/auth/README.md)** - Authentication system
+- **[JWT Plugin](./docs/JWT.md)** - JWT implementation details
+
+### ⚡ **Background Processing**
+- **[Bull Framework](./jobs/README.md)** - Redis-based job queues
+- **[Agenda Jobs](./agenda/README.md)** - MongoDB-based job scheduling
+- **[Worker System](./docs/Workers.md)** - Background job processing
+
+### 🛠️ **Development & Testing**
+- **[Testing Guide](./docs/Testing.md)** - Unit and integration testing
+- **[Development Setup](./docs/Development.md)** - Development environment
+- **[Deployment](./docs/Deployment.md)** - Production deployment guide
+
+### 📁 **Utilities & Helpers**
+- **[Shared Schemas](./utils/README.md)** - Common Joi schemas
+- **[Error Handler](./docs/ErrorHandler.md)** - Custom error classes
+- **[Response Utils](./docs/ResponseUtils.md)** - Response formatting utilities
+
+## 🏗️ Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Hapi Server                              │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │ Auth Module │  │User Module  │  │Event Module │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │Voucher Module│  │Swagger     │  │Error Handler│        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+├─────────────────────────────────────────────────────────────┤
+│                    Background Processing                    │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │ Bull Queue  │  │Agenda Jobs │  │Workers      │        │
+│  │ (Redis)     │  │(MongoDB)   │  │(Processes)  │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+├─────────────────────────────────────────────────────────────┤
+│                    Data Layer                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│  │  MongoDB    │  │   Redis     │  │   Logs      │        │
+│  │ (Main DB)   │  │ (Queues)    │  │ (Files)     │        │
+│  └─────────────┘  └─────────────┘  └─────────────┘        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 🚀 Key Features
+
+### ✨ **Core Features**
+- **Voucher Management**: Create, issue, track, and manage vouchers
+- **Event System**: Manage events with voucher allocation
+- **User Management**: User registration, authentication, and profiles
+- **Role-based Access**: JWT-based authentication with role management
+
+### ⚡ **Performance Features**
+- **Asynchronous Processing**: Bull framework with Redis for background jobs
+- **Job Scheduling**: Agenda.js for recurring tasks and database health checks
+- **Connection Pooling**: Optimized database connections
+- **Caching**: Redis-based caching for frequently accessed data
+
+### 🛡️ **Reliability Features**
+- **Error Handling**: Centralized error management with custom error classes
+- **Validation**: Joi schema validation for all inputs
+- **Transaction Support**: MongoDB transactions for data consistency
+- **Retry Logic**: Automatic retry for transient failures
+
+### 📊 **Monitoring & Management**
+- **Bull Board Dashboard**: Real-time queue monitoring at `/admin/queues`
+- **API Documentation**: Interactive Swagger UI
+- **Comprehensive Logging**: Structured logging with different levels
+- **Health Checks**: Database connection monitoring
+
+## 🔧 Technology Stack
+
+### **Backend Framework**
+- **Hapi.js**: Enterprise-grade Node.js web framework
+- **TypeScript**: Type-safe JavaScript development
+- **MongoDB**: NoSQL database with Mongoose ODM
+- **Redis**: In-memory data store for queues and caching
+
+### **Job Processing**
+- **Bull**: Redis-based job queue for Node.js
+- **Agenda.js**: MongoDB-based job scheduling
+- **Worker Processes**: Separate processes for job execution
+
+### **API & Documentation**
+- **Swagger/OpenAPI**: Interactive API documentation
+- **Joi**: Schema description and validation
+- **JWT**: JSON Web Token authentication
+
+### **Development & Testing**
+- **Jest**: Testing framework
+- **ESLint**: Code linting
+- **ts-node-dev**: Development server with hot reload
+
+## 📁 Project Structure
+
+```
+hapi-voucher-application-module/
+├── src/                          # Source code
+│   ├── modules/                  # Feature modules
+│   │   ├── auth/                 # Authentication
+│   │   ├── user/                 # User management
+│   │   ├── event/                # Event management
+│   │   └── voucher/              # Voucher system
+│   ├── plugins/                  # Hapi plugins
+│   └── types/                    # TypeScript types
+├── jobs/                         # Background job processing
+│   ├── queues/                   # Bull queues
+│   ├── worker/                   # Job workers
+│   └── services/                 # Job services
+├── agenda/                       # Scheduled jobs
+├── tests/                        # Test files
+├── utils/                        # Shared utilities
+└── docs/                         # Documentation
+```
+
+## 🚀 Getting Started
+
+### 1. **Prerequisites**
+- Node.js 16+ 
+- MongoDB 4.4+
+- Redis 6.0+
+- npm or yarn
+
+### 2. **Installation**
+```bash
+git clone <repository-url>
+cd hapi-voucher-application-module
+npm install
+```
+
+### 3. **Environment Setup**
+```bash
+cp env.example .env
+# Edit .env with your configuration
+```
+
+### 4. **Database Setup**
+```bash
+# Start MongoDB
+mongod
+
+# Start Redis
+redis-server
+```
+
+### 5. **Run Application**
+```bash
+# Development mode
+npm run dev
+
+# Production build
+npm run build
+npm start
+```
+
+### 6. **Start Workers**
+```bash
+# Terminal 1: Email worker
+npm run worker
+
+# Terminal 2: Voucher worker  
+npm run worker:voucher
+```
+
+## 📊 API Endpoints
+
+### **Authentication**
+- `POST /auth/login` - User login
+- `POST /auth/register` - User registration
+
+### **Users**
+- `GET /users` - List users
+- `POST /users` - Create user
+- `GET /users/{id}` - Get user by ID
+- `PUT /users/{id}` - Update user
+- `DELETE /users/{id}` - Delete user
+
+### **Events**
+- `GET /events` - List events
+- `POST /events` - Create event
 - `GET /events/{id}` - Get event by ID
 - `PUT /events/{id}` - Update event
 - `DELETE /events/{id}` - Delete event
 
-## Database Schema
+### **Vouchers**
+- `GET /vouchers` - List vouchers
+- `POST /vouchers/issue` - Issue voucher
+- `GET /vouchers/{id}` - Get voucher by ID
+- `PATCH /vouchers/{id}/use` - Mark voucher as used
+- `PATCH /vouchers/{id}/release` - Release voucher lock
+- `DELETE /vouchers/{id}` - Delete voucher
 
-### Event Model
-```typescript
-interface EventDocument {
-  name: string;
-  maxQuantity: number;
-  issuedCount: number;
-  createdAt: Date;
-  editingBy: string | null;
-  editLockAt: Date | null;
-}
-```
+### **Admin & Monitoring**
+- `GET /admin/queues` - Bull Board dashboard
+- `GET /admin/queues/status` - Queue status API
+- `POST /admin/queues/{queueName}/clean-failed` - Clean failed jobs
+- `POST /admin/queues/{queueName}/retry-failed` - Retry failed jobs
 
-### Voucher Model
-```typescript
-interface VoucherDocument {
-  eventId: ObjectId;
-  code: string;
-  issuedTo: string;
-  isUsed: boolean;
-  createdAt: Date;
-}
-```
+## 🧪 Testing
 
-## Transaction Flow
-
-### Voucher Issuance Process
-1. **Start Transaction**: Begin MongoDB session
-2. **Validate Event**: Check if event exists and has available vouchers
-3. **Create Voucher**: Generate unique voucher code
-4. **Update Event**: Increment issuedCount atomically
-5. **Commit Transaction**: Ensure all operations succeed or fail together
-6. **Send Email**: Queue background job for voucher delivery
-
-### Error Handling
-- **ValidationError**: Invalid input parameters
-- **NotFoundError**: Event not found
-- **AppError (456)**: Voucher exhausted
-- **TransientTransactionError**: Automatic retry on MongoDB conflicts
-
-## Development Notes
-
-### Test Notes
-- **eventId** must be a valid ObjectId (24 hex characters), e.g., `'507f1f77bcf86cd799439011'`
-- All tests mock the database; no real MongoDB connection is required
-- When adding new tests, ensure you mock `.session()` methods if using transactions
-
-### Code Quality
-- **TypeScript**: Strict type checking enabled
-- **ESLint**: Code style and quality enforcement
-- **Prettier**: Consistent code formatting
-- **Jest**: Comprehensive testing framework
-
-### Environment Setup
 ```bash
-# Development
-npm run dev
+# Run all tests
+npm test
 
-# Production
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run specific test file
+npm test -- tests/unit/voucher/voucher.service.test.ts
+```
+
+## 📝 Development
+
+### **Code Style**
+```bash
+# Lint code
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+```
+
+### **Type Checking**
+```bash
+# Check TypeScript types
+npx tsc --noEmit
+```
+
+## 🚀 Deployment
+
+### **Production Build**
+```bash
 npm run build
 npm start
-
-# Testing
-npm test
-npm run test:watch
-npm run test:coverage
 ```
 
-## References
-- [MongoDB Transaction & Retry Pattern](https://docs.mongodb.com/v4.0/core/transactions/#retry-commit-operation)
-- [Jest Documentation](https://jestjs.io/)
-- [Hapi.js Documentation](https://hapi.dev/)
-- [TypeScript Documentation](https://www.typescriptlang.org/) 
+### **Environment Variables**
+```bash
+NODE_ENV=production
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/voucher-app
+REDIS_HOST=localhost
+REDIS_PORT=6379
+JWT_SECRET=your-secret-key
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+- **Issues**: Create an issue on GitHub
+- **Documentation**: Check the docs folder
+- **Questions**: Review the README files in each module
+
+---
+
+**🎉 Welcome to the Hapi Voucher Application Module!**
+
+For detailed information about specific components, use the navigation links above to explore the documentation. 

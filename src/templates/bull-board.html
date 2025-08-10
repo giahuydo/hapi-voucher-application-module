@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}} - Bull Queue Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .queues-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .queue-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .queue-card.voucher {
+            border-left-color: #f093fb;
+        }
+        
+        .queue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .queue-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .queue-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-paused {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .refresh-btn {
+            background: #17a2b8;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .refresh-btn:hover {
+            background: #138496;
+        }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: #28a745;
+        }
+        
+        .notification.error {
+            background: #dc3545;
+        }
+        
+        .notification.info {
+            background: #17a2b8;
+        }
+        
+        @media (max-width: 768px) {
+            .queues-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .actions {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Bull Queue Dashboard</h1>
+        <p>Monitor and manage your background job queues</p>
+    </div>
+    
+    <div class="container">
+        <button class="btn refresh-btn" onclick="refreshData()">
+            🔄 Refresh Data
+        </button>
+        
+        <div class="queues-grid" id="queuesGrid">
+            <!-- Queue cards will be populated here -->
+        </div>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+    
+    <script>
+        let isRefreshing = false;
+        
+        // Queue data structure
+        const queues = [
+            { name: 'email', displayName: '📧 Email Queue', color: '#667eea' },
+            { name: 'voucher', displayName: '🎫 Voucher Queue', color: '#f093fb' }
+        ];
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshData();
+            // Auto-refresh every 10 seconds
+            setInterval(refreshData, 10000);
+        });
+        
+        // Refresh queue data
+        async function refreshData() {
+            if (isRefreshing) return;
+            
+            isRefreshing = true;
+            const refreshBtn = document.querySelector('.refresh-btn');
+            refreshBtn.classList.add('loading');
+            refreshBtn.textContent = '⏳ Loading...';
+            
+            try {
+                const response = await fetch('/admin/queues/api/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderQueues(data.data);
+                } else {
+                    showNotification('Failed to fetch queue data', 'error');
+                }
+            } catch (error) {
+                console.error('Error fetching queue data:', error);
+                showNotification('Error connecting to server', 'error');
+            } finally {
+                isRefreshing = false;
+                refreshBtn.classList.remove('loading');
+                refreshBtn.textContent = '🔄 Refresh Data';
+            }
+        }
+        
+        // Render queue cards
+        function renderQueues(queueData) {
+            const grid = document.getElementById('queuesGrid');
+            grid.innerHTML = '';
+            
+            queues.forEach(queue => {
+                const queueInfo = queueData[queue.name];
+                if (queueInfo) {
+                    const card = createQueueCard(queue, queueInfo);
+                    grid.appendChild(card);
+                }
+            });
+        }
+        
+        // Create individual queue card
+        function createQueueCard(queue, data) {
+            const card = document.createElement('div');
+            card.className = `queue-card ${queue.name}`;
+            
+            const isPaused = data.isPaused;
+            const counts = data.counts;
+            
+            card.innerHTML = `
+                <div class="queue-header">
+                    <div class="queue-name">${queue.displayName}</div>
+                    <div class="queue-status ${isPaused ? 'status-paused' : 'status-active'}">
+                        ${isPaused ? '⏸️ Paused' : '▶️ Active'}
+                    </div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-number">${counts.waiting || 0}</span>
+                        <div class="stat-label">Waiting</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${counts.active || 0}</span>
+                        <div class="stat-label">Active</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${counts.completed || 0}</span>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">${counts.failed || 0}</span>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                </div>
+                
+                <div class="actions">
+                    <button class="btn ${isPaused ? 'btn-success' : 'btn-warning'}" 
+                            onclick="toggleQueue('${queue.name}', ${isPaused})">
+                        ${isPaused ? '▶️ Resume' : '⏸️ Pause'}
+                    </button>
+                    <button class="btn btn-primary" onclick="retryFailed('${queue.name}')">
+                        🔄 Retry Failed
+                    </button>
+                    <button class="btn btn-danger" onclick="cleanFailed('${queue.name}')">
+                        🗑️ Clean Failed
+                    </button>
+                    ${queue.name === 'voucher' ? `
+                        <button class="btn btn-success" onclick="createTestJob()">
+                            🧪 Test Job
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        // Toggle queue pause/resume
+        async function toggleQueue(queueName, isPaused) {
+            const action = isPaused ? 'resume' : 'pause';
+            
+            try {
+                const response = await fetch(`/admin/queues/api/${queueName}/${action}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(`${queueName} queue ${action}d successfully`, 'success');
+                    refreshData();
+                } else {
+                    showNotification(`Failed to ${action} ${queueName} queue`, 'error');
+                }
+            } catch (error) {
+                console.error(`Error ${action}ing queue:`, error);
+                showNotification(`Error ${action}ing queue`, 'error');
+            }
+        }
+        
+        // Retry failed jobs
+        async function retryFailed(queueName) {
+            try {
+                const response = await fetch(`/admin/queues/api/${queueName}/retry-failed`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(`Retried ${data.data.retriedCount} failed jobs in ${queueName} queue`, 'success');
+                    refreshData();
+                } else {
+                    showNotification(`Failed to retry failed jobs in ${queueName} queue`, 'error');
+                }
+            } catch (error) {
+                console.error('Error retrying failed jobs:', error);
+                showNotification('Error retrying failed jobs', 'error');
+            }
+        }
+        
+        // Clean failed jobs
+        async function cleanFailed(queueName) {
+            if (!confirm(`Are you sure you want to clean all failed jobs in ${queueName} queue?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/admin/queues/api/${queueName}/clean-failed`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(`Cleaned ${data.data.cleanedCount} failed jobs from ${queueName} queue`, 'success');
+                    refreshData();
+                } else {
+                    showNotification(`Failed to clean failed jobs in ${queueName} queue`, 'error');
+                }
+            } catch (error) {
+                console.error('Error cleaning failed jobs:', error);
+                showNotification('Error cleaning failed jobs', 'error');
+            }
+        }
+        
+        // Create test job
+        async function createTestJob() {
+            try {
+                const response = await fetch('/admin/queues/api/voucher/test-job', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(`Test job created successfully with ID: ${data.data.jobId}`, 'success');
+                    refreshData();
+                } else {
+                    showNotification('Failed to create test job', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating test job:', error);
+                showNotification('Error creating test job', 'error');
+            }
+        }
+        
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

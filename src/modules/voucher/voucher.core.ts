@@ -11,7 +11,7 @@ import {
 
 /**
  * Pure business logic: issue voucher
- * No email, no log
+ * No side effects - only creates voucher and updates event
  */
 export const issueVoucherCore = async (
   eventId: string,
