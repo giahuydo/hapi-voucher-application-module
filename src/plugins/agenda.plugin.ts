@@ -1,5 +1,7 @@
 import { Plugin } from "@hapi/hapi";
 import createAgenda from "../../agenda/agenda.instance";
+import unlockVoucherLocksJob from "../../agenda/jobs/unlockVoucherLocks.job";
+import databaseHealthCheckJob from "../../agenda/jobs/databaseHealthCheck.job";
 
 const AgendaPlugin: Plugin<undefined> = {
   name: "AgendaPlugin",
@@ -15,6 +17,7 @@ const AgendaPlugin: Plugin<undefined> = {
 
     // Register jobs
     // await unlockVoucherLocksJob(agenda);
+    await databaseHealthCheckJob(agenda);
     console.log("✅ Jobs registered:", Object.keys(agenda._definitions));
 
     // Store in server.app
