@@ -4,7 +4,6 @@ import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { HapiAdapter } from '@bull-board/hapi';
 import Joi from 'joi';
 import emailQueue from '../../jobs/queues/email.queue';
-import voucherQueue from '../../jobs/queues/voucher.queue';
 
 const BullBoardPlugin: Plugin<undefined> = {
   name: 'BullBoardPlugin',
@@ -15,8 +14,7 @@ const BullBoardPlugin: Plugin<undefined> = {
     // Create Bull Board with UI
     const { addQueue, removeQueue, setQueues, replaceQueues } = createBullBoard({
       queues: [
-        new BullAdapter(emailQueue),
-        new BullAdapter(voucherQueue)
+        new BullAdapter(emailQueue)
       ],
       serverAdapter: new HapiAdapter()
     });
@@ -65,7 +63,6 @@ const BullBoardPlugin: Plugin<undefined> = {
         handler: async (request, h) => {
           try {
             const emailStats = await emailQueue.getJobCounts();
-            const voucherStats = await voucherQueue.getJobCounts();
             
             return h.response({
               success: true,
@@ -74,11 +71,6 @@ const BullBoardPlugin: Plugin<undefined> = {
                   name: 'email',
                   counts: emailStats,
                   isPaused: emailQueue.isPaused()
-                },
-                voucher: {
-                  name: 'voucher', 
-                  counts: voucherStats,
-                  isPaused: voucherQueue.isPaused()
                 }
               }
             }).code(200);
@@ -103,13 +95,13 @@ const BullBoardPlugin: Plugin<undefined> = {
         tags: ['admin'],
         validate: {
           params: Joi.object({
-            queueName: Joi.string().valid('email', 'voucher').required()
+            queueName: Joi.string().valid('email').required()
           })
         },
         handler: async (request, h) => {
           try {
             const { queueName } = request.params as any;
-            const queue = queueName === 'email' ? emailQueue : voucherQueue;
+            const queue = emailQueue;
             const counts = await queue.getJobCounts();
             
             return h.response({
@@ -141,13 +133,13 @@ const BullBoardPlugin: Plugin<undefined> = {
         tags: ['admin'],
         validate: {
           params: Joi.object({
-            queueName: Joi.string().valid('email', 'voucher').required()
+            queueName: Joi.string().valid('email').required()
           })
         },
         handler: async (request, h) => {
           try {
             const { queueName } = request.params as any;
-            const queue = queueName === 'email' ? emailQueue : voucherQueue;
+            const queue = emailQueue;
             
             const cleanedCount = await queue.clean(24 * 60 * 60 * 1000, 'failed');
             
@@ -179,13 +171,13 @@ const BullBoardPlugin: Plugin<undefined> = {
         tags: ['admin'],
         validate: {
           params: Joi.object({
-            queueName: Joi.string().valid('email', 'voucher').required()
+            queueName: Joi.string().valid('email').required()
           })
         },
         handler: async (request, h) => {
           try {
             const { queueName } = request.params as any;
-            const queue = queueName === 'email' ? emailQueue : voucherQueue;
+            const queue = emailQueue;
             
             const failedJobs = await queue.getFailed();
             let retriedCount = 0;
@@ -223,14 +215,14 @@ const BullBoardPlugin: Plugin<undefined> = {
         tags: ['admin'],
         validate: {
           params: Joi.object({
-            queueName: Joi.string().valid('email', 'voucher').required(),
+            queueName: Joi.string().valid('email').required(),
             action: Joi.string().valid('pause', 'resume').required()
           })
         },
         handler: async (request, h) => {
           try {
             const { queueName, action } = request.params as any;
-            const queue = queueName === 'email' ? emailQueue : voucherQueue;
+            const queue = emailQueue;
             
             if (action === 'pause') {
               await queue.pause();
@@ -256,22 +248,19 @@ const BullBoardPlugin: Plugin<undefined> = {
       }
     });
 
-    // Test job creation for voucher queue
+    // Test job creation for email queue
     server.route({
       method: 'POST',
-      path: '/admin/queues/api/voucher/test-job',
+      path: '/admin/queues/api/email/test-job',
       options: {
         auth: false,
-        description: 'Create a test job in voucher queue',
+        description: 'Create a test job in email queue',
         tags: ['admin'],
         handler: async (request, h) => {
           try {
-            const testJob = await voucherQueue.add('test', {
-              eventId: 'test-event-123',
-              userId: 'test-user-456',
-              voucherCode: 'TEST123',
-              email: 'test@example.com',
-              action: 'issue_and_notify'
+            const testJob = await emailQueue.add('send-voucher-email', {
+              to: 'test@example.com',
+              code: 'TEST123'
             });
             
             return h.response({
@@ -279,7 +268,7 @@ const BullBoardPlugin: Plugin<undefined> = {
               data: {
                 message: 'Test job created successfully',
                 jobId: testJob.id,
-                queue: 'voucher'
+                queue: 'email'
               }
             }).code(200);
           } catch (error: any) {
@@ -303,13 +292,13 @@ const BullBoardPlugin: Plugin<undefined> = {
         tags: ['admin'],
         validate: {
           params: Joi.object({
-            queueName: Joi.string().valid('email', 'voucher').required()
+            queueName: Joi.string().valid('email').required()
           })
         },
         handler: async (request, h) => {
           try {
             const { queueName } = request.params as any;
-            const queue = queueName === 'email' ? emailQueue : voucherQueue;
+            const queue = emailQueue;
             
             const failedJobs = await queue.getFailed();
             const failedJobsDetails = await Promise.all(
@@ -346,7 +335,7 @@ const BullBoardPlugin: Plugin<undefined> = {
     console.log('✅ Bull Board plugin registered');
     console.log('📊 Queue dashboard available at /admin/queues');
     console.log('🔧 Queue API available at /admin/queues/api/*');
-    console.log('📧 Email queue and 🎫 Voucher queue registered');
+    console.log('📧 Email queue registered');
   }
 };
 

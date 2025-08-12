@@ -12,38 +12,45 @@ interface EmailJobData {
   code: string;
 }
 
-// Configure job processing with retry options
-emailQueue.process(async (job) => {
-  const { to, code } = job.data as EmailJobData;
+// Explicitly register the process handler for 'send-voucher-email' job type
+const registerProcessHandlers = () => {
+  logger.info('🔧 Registering process handlers for email queue...');
   
-  try {
-    logger.info(`Processing email job ${job.id} for ${to} (attempt ${job.attemptsMade + 1})`);
+  // Register specific handler for 'send-voucher-email' job type
+  emailQueue.process('send-voucher-email', async (job) => {
+    const { to, code } = job.data as EmailJobData;
     
-    const result = await sendEmail({ to, code });
-    
-    if (result.success) {
-      logger.info(`Email job ${job.id} completed successfully. Message ID: ${result.messageId}`);
-      return result;
-    } else {
-      logger.error(`Email job ${job.id} failed: ${result.error}`);
-      throw new Error(result.error || 'Email sending failed');
+    try {
+      logger.info(`Processing send-voucher-email job ${job.id} for ${to} (attempt ${job.attemptsMade + 1})`);
+      
+      const result = await sendEmail({ to, code });
+      
+      if (result.success) {
+        logger.info(`Send-voucher-email job ${job.id} completed successfully. Message ID: ${result.messageId}`);
+        return result;
+      } else {
+        logger.error(`Send-voucher-email job ${job.id} failed: ${result.error}`);
+        throw new Error(result.error || 'Email sending failed');
+      }
+      
+    } catch (error: any) {
+      logger.error(`Send-voucher-email job ${job.id} failed for ${to}:`, {
+        error: error?.message || 'Unknown error',
+        stack: error?.stack,
+        jobId: job.id,
+        email: to,
+        code,
+        attempts: job.attemptsMade + 1,
+        maxAttempts: job.opts.attempts || 3
+      });
+      
+      // Re-throw to trigger retry mechanism
+      throw error;
     }
-    
-  } catch (error: any) {
-    logger.error(`Email job ${job.id} failed for ${to}:`, {
-      error: error?.message || 'Unknown error',
-      stack: error?.stack,
-      jobId: job.id,
-      email: to,
-      code,
-      attempts: job.attemptsMade + 1,
-      maxAttempts: job.opts.attempts || 3
-    });
-    
-    // Re-throw to trigger retry mechanism
-    throw error;
-  }
-});
+  });
+  
+  logger.info('✅ Process handlers registered successfully');
+};
 
 // Handle job completion
 emailQueue.on('completed', (job) => {
@@ -104,6 +111,9 @@ const init = async () => {
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/voucher_app';
     await mongoose.connect(mongoUri);
     logger.info('✅ Email worker connected to MongoDB');
+
+    // Register process handlers
+    registerProcessHandlers();
 
     logger.info('🚀 Email worker started successfully');
     logger.info('📧 Ready to process email jobs from queue');

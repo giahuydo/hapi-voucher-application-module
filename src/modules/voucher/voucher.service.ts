@@ -5,7 +5,7 @@ import { transformVoucher, transformVoucherList } from "./voucher.transformer";
 import { VoucherDTO } from "./dto/voucher.dto";
 import { IssueVoucherInput } from "./dto/voucher.input";
 import * as UserService from "../user/user.service";
-import { addVoucherJob } from "../../../jobs/queues/voucher.queue";
+import emailQueue from "../../../jobs/queues/email.queue";
 import {logger} from "../../../utils/logger";
 import {NotFoundError, createError} from "../../../utils/errorHandler";
 import { issueVoucherCore } from "./voucher.core";
@@ -32,8 +32,8 @@ export const issueVoucher = async (
     committed = true;
     logger.info('[issueVoucher] ✅ Transaction committed');
 
-    // Create voucher processing job (async - don't wait)
-    await createVoucherProcessingJob(input.userId, code);
+    // Send voucher notification email directly via email queue
+    await sendVoucherNotificationEmail(input.userId, code);
 
     return { code };
   } catch (err: any) {
@@ -60,30 +60,27 @@ export const issueVoucher = async (
   }
 };
 
-export const createVoucherProcessingJob = async (userId: string, code: string) => {
-  logger.info(`[createVoucherProcessingJob] 🎫 Creating voucher processing job for user ${userId}`);
+export const sendVoucherNotificationEmail = async (userId: string, code: string) => {
+  logger.info(`[sendVoucherNotificationEmail] 📧 Sending voucher notification email for user ${userId}`);
   
   try {
     const user = await UserService.getUserById(userId);
     if (user?.email) {
-      logger.info(`[createVoucherProcessingJob] 🎫 Creating comprehensive voucher job for ${user.email} with code ${code}`);
+      logger.info(`[sendVoucherNotificationEmail] 📧 Queuing email for ${user.email} with code ${code}`);
       
-      // Create ONE comprehensive job that handles both voucher processing and email
-      await addVoucherJob({
-        eventId: '', // Will be populated by the worker if needed
-        userId,
-        voucherCode: code,
-        email: user.email,
-        action: 'issue_and_notify' // New field to indicate this is a complete voucher job
+      // Add email job to email queue
+      await emailQueue.add('send-voucher-email', {
+        to: user.email,
+        code: code
       });
       
-      logger.info(`[createVoucherProcessingJob] ✅ Comprehensive voucher job queued successfully`);
+      logger.info(`[sendVoucherNotificationEmail] ✅ Email job queued successfully for ${user.email}`);
     } else {
-      logger.warn(`[createVoucherProcessingJob] ⚠️ User ${userId} has no email - no job created`);
+      logger.warn(`[sendVoucherNotificationEmail] ⚠️ User ${userId} has no email - no email sent`);
     }
   } catch (error) {
-    // Don't fail the main operation if job creation fails
-    logger.error(`[createVoucherProcessingJob] ❌ Failed to create voucher job for user ${userId}:`, error);
+    // Don't fail the main operation if email queuing fails
+    logger.error(`[sendVoucherNotificationEmail] ❌ Failed to queue email for user ${userId}:`, error);
   }
 };
 

@@ -9,15 +9,14 @@ import mongoose from 'mongoose';
 // Mock models and modules
 jest.mock('../../../src/modules/event/event.model');
 jest.mock('../../../src/modules/voucher/voucher.model');
-jest.mock('../../../src/modules/user/user.service');
+jest.mock('../../../src/modules/user/user.service', () => ({
+  getUserById: jest.fn(),
+}));
 jest.mock('../../../jobs/queues/email.queue', () => ({
   __esModule: true,
   default: {
     add: jest.fn(),
   },
-}));
-jest.mock('../../../src/services/user.service', () => ({
-  getUserById: jest.fn(),
 }));
 
 

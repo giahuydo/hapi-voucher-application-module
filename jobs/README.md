@@ -12,7 +12,7 @@ This project uses **Bull** framework with **Redis** to handle asynchronous job p
 │                 │    │                 │    │                 │
 │ • Create jobs   │───▶│ • Store jobs    │───▶│ • Process jobs  │
 │ • Return fast   │    │ • Handle retry  │    │ • Send emails   │
-│ • No blocking   │    │ • Persist data  │    │ • Generate      │
+│ • No blocking   │    │ • Persist data  │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -21,11 +21,9 @@ This project uses **Bull** framework with **Redis** to handle asynchronous job p
 ```
 jobs/
 ├── queues/                    # Queue definitions
-│   ├── email.queue.ts        # Email processing queue
-│   └── voucher.queue.ts      # Voucher processing queue
+│   └── email.queue.ts        # Email processing queue
 ├── worker/                   # Job processors
-│   ├── email.worker.ts       # Email job processor
-│   └── voucher.worker.ts     # Voucher job processor
+│   └── email.worker.ts       # Email job processor
 ├── services/                 # Business logic
 │   └── email.service.ts      # Email sending service
 └── README.md                 # This file
@@ -34,16 +32,10 @@ jobs/
 ## 🚀 Available Queues
 
 ### 1. **Email Queue** (`email.queue.ts`)
-- **Purpose**: Process email sending jobs
+- **Purpose**: Process email sending jobs including voucher notifications
 - **Jobs**: Send voucher emails, notifications
 - **Retry**: 3 attempts with exponential backoff
 - **Priority**: Normal
-
-### 2. **Voucher Queue** (`voucher.queue.ts`)
-- **Purpose**: Process voucher-related jobs
-- **Jobs**: Voucher processing, reporting, CRM sync
-- **Retry**: 3 attempts with exponential backoff
-- **Priority**: High (1)
 
 ## 🔧 Configuration
 
@@ -71,8 +63,7 @@ const queue = new Bull('queueName', {
     },
     removeOnComplete: 100,          // Keep last 100 completed jobs
     removeOnFail: 50,               // Keep last 50 failed jobs
-    delay: 0,                       // No initial delay
-    priority: 1                     // Job priority
+    delay: 0                        // No initial delay
   }
 });
 ```
@@ -99,7 +90,7 @@ POST /admin/queues/{queueName}/retry-failed
 POST /admin/queues/{queueName}/{action}
 
 # Add test job
-POST /admin/queues/voucher/test-job
+POST /admin/queues/email/test-job
 ```
 
 ## 📊 **Bull Board Dashboard**
@@ -116,7 +107,7 @@ http://localhost:3000/admin/queues
 - ⏸️ Pause/Resume queues
 - 🔄 Retry failed jobs
 - 🗑️ Clean failed jobs
-- 🧪 Create test jobs (voucher queue)
+- 🧪 Create test jobs (email queue)
 - 🔄 Auto-refresh every 10 seconds
 - 📱 Responsive design
 
@@ -129,7 +120,7 @@ GET /admin/queues/api/status
 
 # Get specific queue status  
 GET /admin/queues/api/{queueName}/status
-# queueName: 'email' | 'voucher'
+# queueName: 'email'
 ```
 
 #### **2. Queue Management**
@@ -147,8 +138,8 @@ POST /admin/queues/api/{queueName}/{action}
 
 #### **3. Testing**
 ```bash
-# Create test job in voucher queue
-POST /admin/queues/api/voucher/test-job
+# Create test job in email queue
+POST /admin/queues/api/email/test-job
 ```
 
 ### **📱 Example Usage:**
@@ -157,14 +148,14 @@ POST /admin/queues/api/voucher/test-job
 # Check all queues
 curl http://localhost:3000/admin/queues/api/status
 
-# Check voucher queue specifically
-curl http://localhost:3000/admin/queues/api/voucher/status
+# Check email queue specifically
+curl http://localhost:3000/admin/queues/api/email/status
 
 # Pause email queue
 curl -X POST http://localhost:3000/admin/queues/api/email/pause
 
-# Resume voucher queue  
-curl -X POST http://localhost:3000/admin/queues/api/voucher/resume
+# Resume email queue  
+curl -X POST http://localhost:3000/admin/queues/api/email/resume
 
 # Clean failed jobs
 curl -X POST http://localhost:3000/admin/queues/api/email/clean-failed
@@ -185,16 +176,6 @@ curl -X POST http://localhost:3000/admin/queues/api/email/clean-failed
         "failed": 3
       },
       "isPaused": false
-    },
-    "voucher": {
-      "name": "voucher",
-      "counts": {
-        "waiting": 0,
-        "active": 1,
-        "completed": 50,
-        "failed": 0
-      },
-      "isPaused": false
     }
   }
 }
@@ -202,76 +183,56 @@ curl -X POST http://localhost:3000/admin/queues/api/email/clean-failed
 
 ## 🎯 Best Practices
 
-### **Single Job Pattern (Recommended)**
-Instead of creating multiple separate jobs for different tasks, create **ONE comprehensive job** that handles the complete workflow:
+### **Voucher Processing Pattern**
+Vouchers are created immediately in the database, and email notifications are sent asynchronously:
 
 ```typescript
-// ❌ DON'T: Multiple separate jobs
-await addVoucherJob({ eventId, userId, voucherCode, email }); // Voucher processing
-await emailQueue.add({ to: email, code: voucherCode });        // Email sending
+// ✅ DO: Create voucher immediately, send email asynchronously
+const code = await issueVoucherCore(eventId, userId, session);
+await session.commitTransaction();
 
-// ✅ DO: Single comprehensive job
-await addVoucherJob({
-  eventId,
-  userId, 
-  voucherCode,
-  email,
-  action: 'issue_and_notify' // Handles both voucher + email
-});
+// Send email notification via queue (non-blocking)
+await sendVoucherNotificationEmail(userId, code);
+
+return { code }; // Return voucher code immediately
 ```
 
-### **Benefits of Single Job Pattern**
-1. **Atomic Operations**: All related tasks succeed or fail together
-2. **Easier Tracking**: One job ID for the entire workflow
-3. **Better Error Handling**: Retry logic applies to the complete process
-4. **Simplified Monitoring**: Single job status instead of multiple
-5. **Consistent State**: No partial completion scenarios
-
-### **Job Action Types**
-```typescript
-interface VoucherJobData {
-  eventId: string;
-  userId: string;
-  voucherCode: string;
-  email: string;
-  action?: 'issue_and_notify' | 'process_only' | 'email_only';
-}
-```
-
-- **`issue_and_notify`**: Complete voucher processing + email (default)
-- **`process_only`**: Only voucher processing, no email
-- **`email_only`**: Only email notification, no processing
+### **Benefits of This Pattern**
+1. **Fast Response**: User gets voucher code immediately
+2. **Reliable Storage**: Voucher is saved in database before email
+3. **Non-blocking**: Email sending doesn't delay response
+4. **Retry Capability**: Failed emails can be retried automatically
+5. **Scalable**: Multiple email workers can process queue
 
 ## 🎫 Usage Examples
 
 ### Adding Jobs to Queue
 ```typescript
-import { addVoucherJob } from '../jobs/queues/voucher.queue';
+import emailQueue from '../jobs/queues/email.queue';
 
-// Add voucher processing job
-const job = await addVoucherJob({
-  eventId: 'event123',
-  userId: 'user456',
-  voucherCode: 'VC123456',
-  email: 'user@example.com'
+// Add voucher notification email job
+const job = await emailQueue.add('send-voucher-email', {
+  to: 'user@example.com',
+  code: 'VC123456'
 });
 
-console.log(`Job added: ${job.id}`);
+console.log(`Email job added: ${job.id}`);
 ```
 
 ### Processing Jobs in Worker
 ```typescript
-voucherQueue.process(async (job) => {
-  const { eventId, userId, voucherCode, email } = job.data;
+emailQueue.process(async (job) => {
+  const { to, code } = job.data;
   
   try {
-    // Process the voucher
-    const result = await processVoucher(eventId, userId, voucherCode);
+    // Send voucher email
+    const result = await sendEmail({ to, code });
     
-    // Send email notification
-    await sendVoucherEmail(email, voucherCode);
-    
-    return result;
+    if (result.success) {
+      return result;
+    } else {
+      throw new Error(result.error || 'Email sending failed');
+    }
   } catch (error) {
     // Job will be retried automatically
     throw error;
@@ -283,7 +244,6 @@ voucherQueue.process(async (job) => {
 
 ### **📁 Worker Files:**
 - `jobs/worker/email.worker.ts` - Email processing worker
-- `jobs/worker/voucher.worker.ts` - Voucher processing worker
 
 ### **🔄 Running Workers:**
 
@@ -292,30 +252,14 @@ voucherQueue.process(async (job) => {
 # Run email worker only
 npm run worker:email
 
-# Run voucher worker only  
-npm run worker:voucher
-
 # Or use scripts directly
 bash run-worker.sh        # Email worker
-bash run-voucher-worker.sh # Voucher worker
 ```
 
-#### **2. All Workers Together:**
-```bash
-# Run both workers simultaneously
-npm run workers
-
-# Or use script directly
-bash run-all-workers.sh
-```
-
-#### **3. Manual Background Process:**
+#### **2. Manual Background Process:**
 ```bash
 # Terminal 1: Email Worker
 npm run worker:email &
-
-# Terminal 2: Voucher Worker  
-npm run worker:voucher &
 
 # Check running processes
 ps aux | grep worker
@@ -325,18 +269,9 @@ ps aux | grep worker
 
 #### **Email Worker:**
 - Processes email queue jobs
-- Handles email sending
+- Handles email sending including voucher notifications
 - Automatic retry on failure
 - Job monitoring and cleanup
-
-#### **Voucher Worker:**
-- Processes voucher queue jobs
-- Handles voucher processing
-- Supports different job actions:
-  - `issue_and_notify`: Complete workflow
-  - `process_only`: Voucher processing only
-  - `email_only`: Email notification only
-- Automatic retry on failure
 
 ### **📊 Monitoring Workers:**
 
@@ -352,30 +287,29 @@ curl http://localhost:3000/admin/queues/api/status
 
 # Check specific queue
 curl http://localhost:3000/admin/queues/api/email/status
-curl http://localhost:3000/admin/queues/api/voucher/status
 ```
 
 ### **🔧 Worker Management:**
 
 #### **Start/Stop:**
 ```bash
-# Start all workers
-npm run workers
+# Start email worker
+npm run worker:email
 
-# Stop all workers (Ctrl+C)
+# Stop worker (Ctrl+C)
 # Script will automatically clean up processes
 ```
 
 #### **Process Management:**
 ```bash
 # Check worker PIDs
-ps aux | grep -E "(email|voucher).worker"
+ps aux | grep -E "email.worker"
 
 # Kill specific worker
 kill <PID>
 
 # Kill all workers
-pkill -f "voucher.worker\|email.worker"
+pkill -f "email.worker"
 ```
 
 ### **📝 Logs:**
@@ -407,32 +341,30 @@ Workers log to console with structured logging:
 ```bash
 # Retry all failed jobs in a queue
 POST /admin/queues/email/retry-failed
-POST /admin/queues/voucher/retry-failed
 ```
 
 ### Cleanup
 ```bash
 # Clean failed jobs
 POST /admin/queues/email/clean-failed
-POST /admin/queues/voucher/clean-failed
 ```
 
 ## 📈 Performance Benefits
 
 ### Before Bull (Synchronous)
 ```
-User Request → Create Voucher → Send Email → Generate Report → Return Response
-     ↓              ↓              ↓              ↓              ↓
-   Fast          Fast          Slow (2-5s)    Slow (1-3s)    Slow (3-8s total)
+User Request → Create Voucher → Send Email → Return Response
+     ↓              ↓              ↓              ↓
+   Fast          Fast          Slow (2-5s)    Slow (2-5s total)
 ```
 
 ### After Bull (Asynchronous)
 ```
-User Request → Create Voucher → Add Job to Queue → Return Response (Fast!)
+User Request → Create Voucher → Add Email Job to Queue → Return Response (Fast!)
      ↓              ↓              ↓                    ↓
    Fast          Fast          Very Fast            Very Fast (<100ms)
                                     ↓
-                              Worker processes job in background
+                              Worker processes email in background
 ```
 
 ## 🔧 Troubleshooting
@@ -452,7 +384,7 @@ User Request → Create Voucher → Add Job to Queue → Return Response (Fast!)
 2. **Worker Not Processing Jobs**
    ```bash
    # Check worker logs
-   npm run worker:voucher
+   npm run worker:email
    
    # Check queue status
    GET /admin/queues/status
@@ -461,8 +393,8 @@ User Request → Create Voucher → Add Job to Queue → Return Response (Fast!)
 3. **Jobs Stuck in Queue**
    ```bash
    # Pause and resume queue
-   POST /admin/queues/voucher/pause
-   POST /admin/queues/voucher/resume
+   POST /admin/queues/email/pause
+   POST /admin/queues/email/resume
    ```
 
 ### Monitoring Commands
@@ -474,18 +406,18 @@ redis-cli keys "*bull*"
 redis-cli monitor
 
 # Check queue lengths
-redis-cli llen bull:voucherQueue:wait
-redis-cli llen bull:voucherQueue:active
+redis-cli llen bull:emailQueue:wait
+redis-cli llen bull:emailQueue:active
 ```
 
 ## 🚀 Scaling
 
 ### Multiple Workers
 ```bash
-# Start multiple voucher workers
-npm run worker:voucher  # Worker 1
-npm run worker:voucher  # Worker 2
-npm run worker:voucher  # Worker 3
+# Start multiple email workers
+npm run worker:email  # Worker 1
+npm run worker:email  # Worker 2
+npm run worker:email  # Worker 3
 ```
 
 ### Load Balancing
