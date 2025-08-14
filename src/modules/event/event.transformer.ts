@@ -8,8 +8,10 @@ type ObjectIdLike = string | Types.ObjectId;
 type EventInput = Partial<{
   _id: ObjectIdLike;
   name: string;
+  description?: string;
   maxQuantity: number;
   issuedCount: number;
+  isActive?: boolean;
   createdAt: Date;
   updatedAt: Date;
   editingBy?: ObjectIdLike | null;
@@ -20,8 +22,10 @@ export const transformEvent = (doc: EventDocument | EventInput): EventDTO => {
   return {
     id: doc._id?.toString?.() ?? '',
     name: doc.name ?? '',
+    description: doc.description ?? '',
     maxQuantity: doc.maxQuantity ?? 0,
     issuedCount: doc.issuedCount ?? 0,
+    isActive: doc.isActive ?? true,
     createdAt: doc.createdAt ?? new Date(0),
     updatedAt: doc.updatedAt ?? new Date(0),
     editingBy: doc.editingBy?.toString?.() ?? null,

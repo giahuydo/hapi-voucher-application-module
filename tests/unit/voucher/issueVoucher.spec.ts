@@ -60,13 +60,12 @@ describe('VoucherService.issueVoucher', () => {
   it('should issue voucher if event has quantity left', async () => {
     const mockEvent = {
       _id: eventId,
-      maxQuantity: 5,
-      issuedCount: 2,
-      save: jest.fn().mockResolvedValue(true),
+      maxQuantity: 2,
+      issuedCount: 1,
+      save: jest.fn(),
     };
 
     mockFindByIdWithSession(Event, mockEvent);
-    (Voucher.create as jest.Mock).mockResolvedValue([{ code: 'VOUCHER123' }]);
     genCode.mockReturnValue('VOUCHER123');
 
     const result = await VoucherService.issueVoucher({ eventId, userId });
@@ -75,7 +74,7 @@ describe('VoucherService.issueVoucher', () => {
     expect(session.startTransaction).toHaveBeenCalled();
     expect(session.commitTransaction).toHaveBeenCalled();
     expect(mockEvent.save).toHaveBeenCalled();
-    expect(emailQueue.add).toHaveBeenCalledWith({
+    expect(emailQueue.add).toHaveBeenCalledWith('send-voucher-email', {
       to: 'test@example.com',
       code: 'VOUCHER123',
     });
@@ -125,7 +124,7 @@ describe('VoucherService.issueVoucher', () => {
     expect(result.code).toBe('RETRY-VCH');
     expect(session.commitTransaction).toHaveBeenCalledTimes(1);
     expect(Voucher.create).toHaveBeenCalledTimes(2);
-    expect(emailQueue.add).toHaveBeenCalledWith({
+    expect(emailQueue.add).toHaveBeenCalledWith('send-voucher-email', {
       to: 'test@example.com',
       code: 'RETRY-VCH',
     });

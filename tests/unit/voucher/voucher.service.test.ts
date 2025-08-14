@@ -4,7 +4,7 @@ import { Event } from '../../../src/modules/event/event.model';
 import { Voucher } from '../../../src/modules/voucher/voucher.model';
 import emailQueue from '../../../jobs/queues/email.queue';
 import mongoose from 'mongoose';
-
+import { generateVoucherCode } from '../../../utils/generateVoucherCode';
 
 // Mock models and modules
 jest.mock('../../../src/modules/event/event.model');
@@ -18,7 +18,9 @@ jest.mock('../../../jobs/queues/email.queue', () => ({
     add: jest.fn(),
   },
 }));
-
+jest.mock('../../../utils/generateVoucherCode', () => ({
+  generateVoucherCode: jest.fn(),
+}));
 
 jest.mock('mongoose', () => ({
   ...jest.requireActual('mongoose'),
@@ -39,10 +41,10 @@ const mockFindByIdWithSession = (model: any, returnedData: any) => {
   });
 };
 
-
 describe('VoucherService - issueVoucher', () => {
   let session: any;
   let validEventId: string;
+  let genCode: jest.Mock;
 
   beforeEach(() => {
     session = createMockSession();
@@ -53,6 +55,10 @@ describe('VoucherService - issueVoucher', () => {
     (UserService.getUserById as jest.Mock).mockResolvedValue({ email: 'test@example.com' });
 
     (emailQueue.add as jest.Mock).mockResolvedValue(true);
+    
+    // Setup generateVoucherCode mock
+    genCode = generateVoucherCode as jest.Mock;
+    genCode.mockReturnValue('VOUCHER123');
   });
 
   afterEach(() => {
@@ -74,7 +80,7 @@ describe('VoucherService - issueVoucher', () => {
 
     expect(result.code).toBe('VOUCHER123');
     expect(session.commitTransaction).toHaveBeenCalled();
-    expect(emailQueue.add).toHaveBeenCalledWith({
+    expect(emailQueue.add).toHaveBeenCalledWith('send-voucher-email', {
       to: 'test@example.com',
       code: 'VOUCHER123',
     });
@@ -92,7 +98,7 @@ describe('VoucherService - issueVoucher', () => {
 
     await expect(
       VoucherService.issueVoucher({ eventId: validEventId, userId: 'u1' })
-    ).rejects.toThrow(expect.objectContaining({ status: 456 }));
+    ).rejects.toThrow(expect.objectContaining({ statusCode: 456 }));
 
     expect(session.abortTransaction).toHaveBeenCalled();
   });
@@ -106,6 +112,8 @@ describe('VoucherService - issueVoucher', () => {
     };
 
     mockFindByIdWithSession(Event, mockEvent);
+    genCode.mockReturnValueOnce('FAIL-CODE').mockReturnValueOnce('RETRY456');
+    
     (Voucher.create as jest.Mock)
       .mockRejectedValueOnce({ name: 'TransientTransactionError' })
       .mockResolvedValueOnce([{ code: 'RETRY456' }]);
@@ -132,6 +140,7 @@ describe('VoucherService - issueVoucher', () => {
     };
 
     mockFindByIdWithSession(Event, eventMock);
+    genCode.mockImplementation(() => `VOUCHER${issuedCount + 1}`);
 
     (Voucher.create as jest.Mock).mockImplementation(() => {
       issuedCount++;
@@ -154,7 +163,7 @@ describe('VoucherService - issueVoucher', () => {
 
     rejected.forEach((r) => {
       // @ts-ignore
-      expect(r.reason.status).toBe(456);
+      expect(r.reason.statusCode).toBe(456);
     });
   });
 });
