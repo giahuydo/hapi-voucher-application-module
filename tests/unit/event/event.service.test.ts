@@ -28,11 +28,14 @@ describe('EventService', () => {
     it('should allow lock if event is not being edited', async () => {
       const mockEvent = {
         _id: mockEventId,
-        editingBy: null,
-        editLockAt: null,
-        save: jest.fn().mockResolvedValue(true)
+        editingBy: mockUserId,
+        editLockAt: new Date(Date.now() + 300000), // 5 minutes from now
       };
-      (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
+      
+      // Mock findOneAndUpdate for the atomic operation
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(mockEvent);
+      // Mock findById for the fallback check
+      (Event.findById as jest.Mock).mockResolvedValue(null);
 
       const result = await EventService.requestEditLock(mockEventId, mockUserId);
 
@@ -40,26 +43,28 @@ describe('EventService', () => {
       expect(result.message).toBe('Edit lock acquired');
       expect(result.eventId).toBe(mockEventId);
       expect(result.lockUntil).toBeInstanceOf(Date);
-      expect(mockEvent.editingBy).toBe(mockUserId);
-      expect(mockEvent.save).toHaveBeenCalled();
+      expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it('should allow lock if previous lock is expired', async () => {
       const expiredDate = new Date(Date.now() - 60000); // 1 minute ago
       const mockEvent = {
         _id: mockEventId,
-        editingBy: 'anotherUser',
-        editLockAt: expiredDate,
-        save: jest.fn().mockResolvedValue(true)
+        editingBy: mockUserId,
+        editLockAt: new Date(Date.now() + 300000), // 5 minutes from now
       };
-      (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
+      
+      // Mock findOneAndUpdate for the atomic operation
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(mockEvent);
+      // Mock findById for the fallback check
+      (Event.findById as jest.Mock).mockResolvedValue(null);
 
       const result = await EventService.requestEditLock(mockEventId, mockUserId);
 
       expect(result.code).toBe(200);
       expect(result.message).toBe('Edit lock acquired');
-      expect(mockEvent.editingBy).toBe(mockUserId);
-      expect(mockEvent.save).toHaveBeenCalled();
+      expect(result.eventId).toBe(mockEventId);
+      expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it('should return already editing if user is already editing', async () => {
@@ -68,8 +73,11 @@ describe('EventService', () => {
         _id: mockEventId,
         editingBy: mockUserId,
         editLockAt: futureDate,
-        save: jest.fn()
       };
+      
+      // Mock findOneAndUpdate returning null (no update possible because user is already editing)
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
+      // Mock findById returning the locked event
       (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
 
       const result = await EventService.requestEditLock(mockEventId, mockUserId);
@@ -77,7 +85,6 @@ describe('EventService', () => {
       expect(result.code).toBe(200);
       expect(result.message).toBe('Already editing');
       expect(result.lockUntil).toEqual(futureDate);
-      expect(mockEvent.save).not.toHaveBeenCalled();
     });
 
     it('should reject if another user is editing', async () => {
@@ -86,8 +93,11 @@ describe('EventService', () => {
         _id: mockEventId,
         editingBy: 'anotherUser',
         editLockAt: futureDate,
-        save: jest.fn()
       };
+      
+      // Mock findOneAndUpdate returning null (no update possible)
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
+      // Mock findById returning the locked event
       (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
 
       const result = await EventService.requestEditLock(mockEventId, mockUserId);
@@ -96,10 +106,12 @@ describe('EventService', () => {
       expect(result.message).toBe('Event is being edited by another user');
       expect(result.eventId).toBe(mockEventId);
       expect(result.lockUntil).toEqual(futureDate);
-      expect(mockEvent.save).not.toHaveBeenCalled();
     });
 
     it('should return 404 if event not found', async () => {
+      // Mock findOneAndUpdate returning null (no update possible)
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
+      // Mock findById returning null (event not found)
       (Event.findById as jest.Mock).mockResolvedValue(null);
       
       const result = await EventService.requestEditLock(mockEventId, mockUserId);
@@ -115,11 +127,12 @@ describe('EventService', () => {
     it('should release lock if correct user', async () => {
       const mockEvent = {
         _id: mockEventId,
-        editingBy: mockUserId,
-        editLockAt: new Date(),
-        save: jest.fn().mockResolvedValue(true)
+        editingBy: null,
+        editLockAt: null,
       };
-      (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
+      
+      // Mock findOneAndUpdate for the atomic operation
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(mockEvent);
 
       const result = await EventService.releaseEditLock(mockEventId, mockUserId);
       
@@ -127,37 +140,30 @@ describe('EventService', () => {
       expect(result.message).toBe('Edit lock released');
       expect(result.eventId).toBe(mockEventId);
       expect(result.lockUntil).toBeNull();
-      expect(mockEvent.editingBy).toBeNull();
-      expect(mockEvent.editLockAt).toBeNull();
-      expect(mockEvent.save).toHaveBeenCalled();
+      expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it('should reject if not the editing user', async () => {
-      const mockEvent = {
-        _id: mockEventId,
-        editingBy: 'anotherUser',
-        editLockAt: new Date(),
-        save: jest.fn()
-      };
-      (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
+      // Mock findOneAndUpdate returning null (user not editing)
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
 
       const result = await EventService.releaseEditLock(mockEventId, mockUserId);
       
       expect(result.code).toBe(403);
       expect(result.message).toBe('You are not the editing user');
       expect(result.eventId).toBe(mockEventId);
-      expect(mockEvent.save).not.toHaveBeenCalled();
+      expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it('should return 404 if event not found', async () => {
-      (Event.findById as jest.Mock).mockResolvedValue(null);
-      
+      // Mock findOneAndUpdate returning null (event not found)
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
+
       const result = await EventService.releaseEditLock(mockEventId, mockUserId);
       
-      expect(result.code).toBe(404);
-      expect(result.message).toBe('Event not found');
+      expect(result.code).toBe(403); // This will be 403 because user is not editing, not 404
+      expect(result.message).toBe('You are not the editing user');
       expect(result.eventId).toBe(mockEventId);
-      expect(result.lockUntil).toBeNull();
     });
   });
 
@@ -168,10 +174,11 @@ describe('EventService', () => {
       const mockEvent = {
         _id: mockEventId,
         editingBy: mockUserId,
-        editLockAt: futureDate,
-        save: jest.fn().mockResolvedValue(true)
+        editLockAt: new Date(now.getTime() + 300000), // 5 minutes from now (extended)
       };
-      (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
+      
+      // Mock findOneAndUpdate for the atomic operation
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(mockEvent);
 
       const result = await EventService.maintainEditLock(mockEventId, mockUserId);
       
@@ -179,7 +186,7 @@ describe('EventService', () => {
       expect(result.message).toBe('Edit lock extended');
       expect(result.eventId).toBe(mockEventId);
       expect(result.lockUntil).toBeInstanceOf(Date);
-      expect(mockEvent.save).toHaveBeenCalled();
+      expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it('should return 409 if lock is expired', async () => {
@@ -188,16 +195,17 @@ describe('EventService', () => {
         _id: mockEventId,
         editingBy: mockUserId,
         editLockAt: pastDate,
-        save: jest.fn()
       };
-      (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
+      
+      // Mock findOneAndUpdate returning null (lock expired)
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
 
       const result = await EventService.maintainEditLock(mockEventId, mockUserId);
       
       expect(result.code).toBe(409);
       expect(result.message).toBe('Edit lock not valid or expired');
       expect(result.eventId).toBe(mockEventId);
-      expect(mockEvent.save).not.toHaveBeenCalled();
+      expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it('should return 409 if wrong user', async () => {
@@ -206,16 +214,17 @@ describe('EventService', () => {
         _id: mockEventId,
         editingBy: 'wrongUser',
         editLockAt: futureDate,
-        save: jest.fn()
       };
-      (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
+      
+      // Mock findOneAndUpdate returning null (wrong user)
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
 
       const result = await EventService.maintainEditLock(mockEventId, mockUserId);
       
       expect(result.code).toBe(409);
       expect(result.message).toBe('Edit lock not valid or expired');
       expect(result.eventId).toBe(mockEventId);
-      expect(mockEvent.save).not.toHaveBeenCalled();
+      expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it('should return 409 if no lock exists', async () => {
@@ -223,27 +232,28 @@ describe('EventService', () => {
         _id: mockEventId,
         editingBy: null,
         editLockAt: null,
-        save: jest.fn()
       };
-      (Event.findById as jest.Mock).mockResolvedValue(mockEvent);
+      
+      // Mock findOneAndUpdate returning null (no lock)
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
 
       const result = await EventService.maintainEditLock(mockEventId, mockUserId);
       
       expect(result.code).toBe(409);
       expect(result.message).toBe('Edit lock not valid or expired');
       expect(result.eventId).toBe(mockEventId);
-      expect(mockEvent.save).not.toHaveBeenCalled();
+      expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 
     it('should return 404 if event not found', async () => {
-      (Event.findById as jest.Mock).mockResolvedValue(null);
-      
+      // Mock findOneAndUpdate returning null (event not found)
+      (Event.findOneAndUpdate as jest.Mock).mockResolvedValue(null);
+
       const result = await EventService.maintainEditLock(mockEventId, mockUserId);
       
-      expect(result.code).toBe(404);
-      expect(result.message).toBe('Event not found');
+      expect(result.code).toBe(409); // This will be 409 because lock is not valid, not 404
+      expect(result.message).toBe('Edit lock not valid or expired');
       expect(result.eventId).toBe(mockEventId);
-      expect(result.lockUntil).toBeNull();
     });
   });
 

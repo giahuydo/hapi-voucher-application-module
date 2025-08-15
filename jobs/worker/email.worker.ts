@@ -145,4 +145,6 @@ if (require.main === module) {
   init();
 }
 
-export default emailQueue;
+// Export the worker functions instead of the queue
+export { init as startEmailWorker };
+export default { startEmailWorker: init };

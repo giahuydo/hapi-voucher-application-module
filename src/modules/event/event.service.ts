@@ -10,6 +10,18 @@ import mongoose from 'mongoose';
 
 const EDIT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+// Helper function to check if event is locked
+const isEventLocked = async (eventId: string, userId?: string): Promise<boolean> => {
+  const event = await Event.findById(eventId);
+  if (!event) return false;
+  
+  const now = new Date();
+  return !!(event.editingBy && 
+           event.editingBy !== userId && 
+           event.editLockAt && 
+           event.editLockAt > now);
+};
+
 /**
  * 📌 Request edit lock for a specific event
  * @param eventId - ID
@@ -20,48 +32,87 @@ export const requestEditLock = async (
   eventId: string,
   userId: string
 ): Promise<LockResponseDTO> => {
-  const now = new Date();
-  const event = await Event.findById(eventId);
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const now = new Date();
+    
+    // Use atomic operation to prevent race conditions
+    const event = await Event.findOneAndUpdate(
+      {
+        _id: eventId,
+        $or: [
+          { editingBy: null },
+          { editLockAt: { $lt: now } }
+        ]
+      },
+      {
+        $set: {
+          editingBy: userId,
+          editLockAt: new Date(now.getTime() + EDIT_TIMEOUT_MS)
+        }
+      },
+      { 
+        new: true, 
+        session,
+        upsert: false 
+      }
+    );
 
-  if (!event) {
-    return {
-      code: 404,
-      message: 'Event not found',
-      eventId,
-      lockUntil: null
-    };
-  }
+    if (!event) {
+      // Check if event is locked by another user
+      let lockedEvent;
+      try {
+        lockedEvent = await Event.findById(eventId).session(session);
+      } catch (error) {
+        // Fallback for test environment where session might not be supported
+        lockedEvent = await Event.findById(eventId);
+      }
+      
+      if (lockedEvent?.editingBy && lockedEvent?.editLockAt && lockedEvent.editLockAt > now) {
+        // Check if the same user is already editing
+        if (lockedEvent.editingBy === userId) {
+          await session.abortTransaction();
+          return {
+            code: 200,
+            message: 'Already editing',
+            eventId,
+            lockUntil: lockedEvent.editLockAt
+          };
+        }
+        
+        await session.abortTransaction();
+        return {
+          code: 409,
+          message: 'Event is being edited by another user',
+          eventId,
+          lockUntil: lockedEvent.editLockAt
+        };
+      }
+      
+      await session.abortTransaction();
+      return {
+        code: 404,
+        message: 'Event not found',
+        eventId,
+        lockUntil: null
+      };
+    }
 
-  const lockExpired = !event.editLockAt || event.editLockAt < now;
-
-  if (!event.editingBy || lockExpired) {
-    event.editingBy = userId;
-    event.editLockAt = new Date(now.getTime() + EDIT_TIMEOUT_MS);
-    await event.save();
-
+    await session.commitTransaction();
     return {
       code: 200,
       message: 'Edit lock acquired',
       eventId,
       lockUntil: event.editLockAt
     };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  if (event.editingBy === userId) {
-    return {
-      code: 200,
-      message: 'Already editing',
-      eventId,
-      lockUntil: event.editLockAt ?? null
-    };
-  }
-
-  return {
-    code: 409,
-    message: 'Event is being edited by another user',
-    eventId,
-    lockUntil: event.editLockAt ?? null
-  };
 };
 /**
  * Release edit lock for a specific event.
@@ -72,27 +123,40 @@ export const releaseEditLock = async (
 ): Promise<LockResponseDTO> => {
   logger.info(`[ReleaseEditLock] User ${userId} is requesting to release lock on event ${eventId}`);
 
-  const event = await Event.findById(eventId);
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    // Use atomic operation to prevent race conditions
+    const event = await Event.findOneAndUpdate(
+      {
+        _id: eventId,
+        editingBy: userId
+      },
+      {
+        $set: {
+          editingBy: null,
+          editLockAt: null
+        }
+      },
+      { 
+        new: true, 
+        session 
+      }
+    );
 
-  if (!event) {
-    logger.warn(`[ReleaseEditLock] Event not found: ${eventId}`);
-    return {
-      code: 404,
-      message: 'Event not found',
-      eventId,
-      lockUntil: null
-    };
-  }
+    if (!event) {
+      await session.abortTransaction();
+      logger.warn(`[ReleaseEditLock] User ${userId} is not the editing user of event ${eventId}`);
+      return {
+        code: 403,
+        message: 'You are not the editing user',
+        eventId,
+        lockUntil: null
+      };
+    }
 
-  logger.info(`[ReleaseEditLock] Current editingBy: ${event.editingBy}, Requesting user: ${userId}`);
-  logger.info(`[ReleaseEditLock] editingBy: ${event.editingBy} (${typeof event.editingBy})`);
-  logger.info(`[ReleaseEditLock] userId: ${userId} (${typeof userId})`);
-  logger.info(`[ReleaseEditLock] Equal? ${event.editingBy === userId}`);
-
-  if (event.editingBy?.toString() === userId.toString()) {
-    event.editingBy = null;
-    event.editLockAt = null;
-    await event.save();
+    await session.commitTransaction();
     logger.info(`[ReleaseEditLock] Lock released by user ${userId} on event ${eventId}`);
     return {
       code: 200,
@@ -100,15 +164,12 @@ export const releaseEditLock = async (
       eventId,
       lockUntil: null
     };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  logger.warn(`[ReleaseEditLock] User ${userId} is not the editing user of event ${eventId}`);
-  return {
-    code: 403,
-    message: 'You are not the editing user',
-    eventId,
-    lockUntil: event.editLockAt ?? null
-  };
 };
 
 /**
@@ -118,38 +179,46 @@ export const maintainEditLock = async (
   eventId: string,
   userId: string
 ): Promise<LockResponseDTO> => {
-  const now = new Date();
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    const now = new Date();
 
-  logger.info(`[MaintainEditLock] ⏳ Now: ${now.toISOString()}`);
-  logger.info(`[MaintainEditLock] 🧑‍💻 userId: ${userId}`);
-  logger.info(`[MaintainEditLock] 🔍 Checking eventId: ${eventId}`);
+    logger.info(`[MaintainEditLock] ⏳ Now: ${now.toISOString()}`);
+    logger.info(`[MaintainEditLock] 🧑‍💻 userId: ${userId}`);
+    logger.info(`[MaintainEditLock] 🔍 Checking eventId: ${eventId}`);
 
-  const event = await Event.findById(eventId);
+    // Use atomic operation to prevent race conditions
+    const event = await Event.findOneAndUpdate(
+      {
+        _id: eventId,
+        editingBy: userId,
+        editLockAt: { $gt: now }
+      },
+      {
+        $set: {
+          editLockAt: new Date(now.getTime() + EDIT_TIMEOUT_MS)
+        }
+      },
+      { 
+        new: true, 
+        session 
+      }
+    );
 
-  if (!event) {
-    logger.warn(`[MaintainEditLock] ❌ Event not found: ${eventId}`);
-    return {
-      code: 404,
-      message: 'Event not found',
-      eventId,
-      lockUntil: null
-    };
-  }
+    if (!event) {
+      await session.abortTransaction();
+      logger.warn(`[MaintainEditLock] ⚠️ Edit lock not valid or expired for user: ${userId}`);
+      return {
+        code: 409,
+        message: 'Edit lock not valid or expired',
+        eventId,
+        lockUntil: null
+      };
+    }
 
-  logger.info(`[MaintainEditLock] 📄 Current editingBy: ${event.editingBy}`);
-  logger.info(`[MaintainEditLock] ⏱ Current lockUntil: ${event.editLockAt}`);
-
-  const isValid =
-    event.editingBy?.toString() === userId.toString() &&
-    event.editLockAt &&
-    event.editLockAt > now;
-
-  logger.info(`[MaintainEditLock] ✅ isValid: ${isValid}`);
-
-  if (isValid) {
-    event.editLockAt = new Date(now.getTime() + EDIT_TIMEOUT_MS);
-    await event.save();
-
+    await session.commitTransaction();
     logger.info(`[MaintainEditLock] 🔁 Lock extended to: ${event.editLockAt?.toISOString()}`);
 
     return {
@@ -158,16 +227,12 @@ export const maintainEditLock = async (
       eventId,
       lockUntil: event.editLockAt
     };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  logger.warn(`[MaintainEditLock] ⚠️ Edit lock not valid or expired for user: ${userId}`);
-
-  return {
-    code: 409,
-    message: 'Edit lock not valid or expired',
-    eventId,
-    lockUntil: event.editLockAt ?? null
-  };
 };
 
 export const getAllEvents = (query: PaginationQuery) =>
@@ -214,14 +279,24 @@ export const createEvent = async (input: CreateEventInput) => {
  * Update an event by ID
  * @param id - Event ID
  * @param input - Partial update data
+ * @param userId - Optional user ID to check lock permissions
  * @returns Mongo document if updated, otherwise null
  */
 export const updateEvent = async (
   id: string,
-  input: UpdateEventInput
+  input: UpdateEventInput,
+  userId?: string
 ): Promise<EventDTO> => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new ValidationError('Invalid event ID');
+  }
+
+  // Check if event is locked by another user before updating
+  if (userId) {
+    const isLocked = await isEventLocked(id, userId);
+    if (isLocked) {
+      throw createError('ConflictError', 'Event is currently being edited by another user', 409);
+    }
   }
 
   const updated = await Event.findByIdAndUpdate(
@@ -233,8 +308,6 @@ export const updateEvent = async (
   if (!updated) {
     throw new NotFoundError('Event not found');
   }
-
-
 
   return transformEvent(updated);
 };
