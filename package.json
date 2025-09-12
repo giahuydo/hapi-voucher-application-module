@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
-    "worker:email": "ts-node jobs/worker/email.worker.ts",
+    "worker": "ts-node jobs/worker/email.worker.ts",
     "workers": "bash run-all-workers.sh",
     "build": "tsc",
     "test": "jest",

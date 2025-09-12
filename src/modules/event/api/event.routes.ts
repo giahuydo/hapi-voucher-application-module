@@ -18,6 +18,9 @@ import {
   getAllEventsQuerySchema,
 } from '../dto/event.input';
 
+import { eventSwaggerResponses } from './event.schemas';
+import { swaggerResponses } from '../../../../utils/schemas';
+
 const eventRoutes: ServerRoute[] = [
   {
     method: 'GET',
@@ -37,26 +40,8 @@ const eventRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: {
-              description: 'List of all events',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.array().items(Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  description: Joi.string(),
-                  maxQuantity: Joi.number(),
-                  issuedCount: Joi.number(),
-                  isActive: Joi.boolean(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                }))
-              })
-            },
-            401: {
-              description: 'Unauthorized - Invalid or missing token'
-            }
+            200: eventSwaggerResponses.listSuccess,
+            401: swaggerResponses.common[401],
           }
         }
       }
@@ -78,29 +63,9 @@ const eventRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: {
-              description: 'Event details',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  description: Joi.string(),
-                  maxQuantity: Joi.number(),
-                  issuedCount: Joi.number(),
-                  isActive: Joi.boolean(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                })
-              })
-            },
-            401: {
-              description: 'Unauthorized - Invalid or missing token'
-            },
-            404: {
-              description: 'Event not found'
-            }
+            200: eventSwaggerResponses.singleSuccess,
+            401: swaggerResponses.common[401],
+            404: swaggerResponses.common[404]
           }
         }
       }
@@ -214,19 +179,9 @@ const eventRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: {
-              description: 'Event deleted successfully',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string()
-              })
-            },
-            401: {
-              description: 'Unauthorized - Invalid or missing token'
-            },
-            404: {
-              description: 'Event not found'
-            }
+            200: eventSwaggerResponses.deleteSuccess,
+            401: swaggerResponses.common[401],
+            404: swaggerResponses.common[404],
           }
         }
       }

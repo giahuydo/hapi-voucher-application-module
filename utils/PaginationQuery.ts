@@ -194,8 +194,6 @@ export interface FieldType {
         }
       });
     }
-
-    logger.info(`[paginateModel] Filters: ${JSON.stringify(filters)}`);
   
     const [total, results] = await Promise.all([
       model.countDocuments(filters),

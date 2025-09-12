@@ -30,8 +30,6 @@ export const getAllEvents = async (req: Request, h: ResponseToolkit) => {
       ...paginationQuery,
       searchFields
     };
-
-    logger.info(`[getAllEvents] Query: ${JSON.stringify(query)}`);
     
     const result = await EventService.getAllEvents(query);
     return formatSuccess(h, result, 'Fetched all events successfully');
