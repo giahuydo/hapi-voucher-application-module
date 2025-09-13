@@ -1,5 +1,5 @@
-import { logger } from './logger';
-
+import Boom from "@hapi/boom";
+import { logger } from "./logger";
 
 export function createError(
   name: string,
@@ -24,69 +24,104 @@ export class AppError extends Error {
 }
 
 export class NotFoundError extends AppError {
-  constructor(message = 'Resource not found') {
+  constructor(message = "Resource not found") {
     super(message, 404);
   }
 }
 
 export class ValidationError extends AppError {
-  constructor(message = 'Validation error') {
+  constructor(message = "Validation error") {
     super(message, 400);
   }
 }
 
-
+/**
+ * Handle different types of errors and return a standardized error response.
+ * @param err The error object to handle.
+ * @returns An object containing statusCode, error name, and message.
+ */
 export function handleError(err: any) {
-  const stack = err.stack || new Error().stack;
+  const stack = err?.stack || new Error().stack;
 
+  // 1) Custom application errors
   if (err instanceof AppError) {
-    logger.error(`[AppError] ${err.message} (status: ${err.statusCode})\n${stack}`);
+    logger.error(
+      `[AppError] ${err.message} (status: ${err.statusCode})\n${stack}`
+    );
     return {
       statusCode: err.statusCode,
-      error: err.name,
+      error: err.name || "AppError",
       message: err.message,
     };
   }
 
-  // Joi validation
-  if (err.isJoi) {
-    const message = err.details?.map((d: any) => d.message).join(', ') || err.message;
+  // 2) Joi validation errors
+  if (err?.isJoi) {
+    const message =
+      err.details?.map((d: any) => d.message).join(", ") ||
+      err.message ||
+      "Validation failed";
     logger.warn(`[JoiValidationError] ${message}\n${stack}`);
     return {
       statusCode: 400,
-      error: 'ValidationError',
+      error: "ValidationError",
       message,
     };
   }
 
-  const errorMap: Record<string, { statusCode: number; error: string; defaultMessage: string; logLevel: 'warn' | 'error' }> = {
-    MongoError:            { statusCode: 409, error: 'DuplicateKeyError',    defaultMessage: 'Resource already exists', logLevel: 'warn' },
-    CastError:             { statusCode: 400, error: 'CastError',            defaultMessage: 'Invalid resource ID',     logLevel: 'warn' },
-    ValidationError:       { statusCode: 400, error: 'ValidationError',      defaultMessage: 'Validation failed',       logLevel: 'warn' },
-    UnauthorizedError:     { statusCode: 401, error: 'Unauthorized',         defaultMessage: 'Unauthorized access',     logLevel: 'warn' },
-    ForbiddenError:        { statusCode: 403, error: 'Forbidden',            defaultMessage: 'Forbidden access',        logLevel: 'warn' },
-    NotFoundError:         { statusCode: 404, error: 'NotFound',             defaultMessage: 'Resource not found',      logLevel: 'warn' },
-    ConflictError:         { statusCode: 409, error: 'Conflict',             defaultMessage: 'Resource conflict',       logLevel: 'warn' },
-    TimeoutError:          { statusCode: 408, error: 'Timeout',              defaultMessage: 'Request timed out',       logLevel: 'warn' },
-    RateLimitError:        { statusCode: 429, error: 'TooManyRequests',      defaultMessage: 'Too many requests',       logLevel: 'warn' },
-  };
+  // 3) Mongoose validation errors
+  if (Boom.isBoom(err)) {
+    const statusCode = err.output?.statusCode ?? 500;
+    const boomMsg = err.output?.payload?.message || err.message || "";
 
-  const mapped = errorMap[err.name];
-  if (mapped) {
-    const message = err.message || mapped.defaultMessage;
-    logger[mapped.logLevel](`[${err.name}] ${message}\n${stack}`);
+    if (statusCode === 401) {
+      const message = "Unauthorized access";
+      logger.warn(`[Unauthorized] ${boomMsg}\n${stack}`);
+      return { statusCode: 401, error: "Unauthorized", message };
+    }
+
+    const label =
+      statusCode === 403
+        ? "Forbidden"
+        : statusCode === 404
+          ? "NotFound"
+          : statusCode === 408
+            ? "Timeout"
+            : statusCode === 429
+              ? "TooManyRequests"
+              : "Error";
+
+    logger.warn(`[Boom ${statusCode}] ${boomMsg}\n${stack}`);
     return {
-      statusCode: mapped.statusCode,
-      error: mapped.error,
-      message,
+      statusCode,
+      error: label,
+      message: boomMsg || label,
     };
   }
 
-  const unknownMessage = err.message || 'Internal server error';
+  // 4 Mongoose validation errors
+  if (err?.code === 11000 || /E11000/i.test(String(err?.message))) {
+    const message = "Resource already exists";
+    logger.warn(`[DuplicateKeyError] ${err?.message}\n${stack}`);
+    return { statusCode: 409, error: "DuplicateKeyError", message };
+  }
+
+  // 5 JWT errors
+  const jwtName = String(err?.name || "");
+  if (/JsonWebTokenError|TokenExpiredError|NotBeforeError/i.test(jwtName)) {
+    const message = /expired/i.test(String(err?.message))
+      ? "Token expired"
+      : "Invalid token";
+    logger.warn(`[Unauthorized] ${err?.message}\n${stack}`);
+    return { statusCode: 401, error: "Unauthorized", message };
+  }
+
+  // 6) Unknown
+  const unknownMessage = err?.message || "Internal server error";
   logger.error(`[UnknownError] ${unknownMessage}\n${stack}`);
   return {
     statusCode: 500,
-    error: 'InternalServerError',
+    error: "InternalServerError",
     message: unknownMessage,
   };
 }

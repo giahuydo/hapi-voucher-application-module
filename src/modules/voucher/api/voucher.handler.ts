@@ -28,8 +28,12 @@ export const getAllVouchers = async (req: Request, h: ResponseToolkit) => {
       searchFields
     };
     
-    const vouchers = await VoucherService.getAllVouchers(query);
-    return formatSuccess(h, vouchers, 'Fetched all vouchers successfully');
+    const result = await VoucherService.getAllVouchers(query);
+    return h
+    .response({
+      success: true,
+      ...result,
+    })
   } catch (err) {
     return formatError(h, err);
   }

@@ -32,7 +32,12 @@ export const getAllEvents = async (req: Request, h: ResponseToolkit) => {
     };
     
     const result = await EventService.getAllEvents(query);
-    return formatSuccess(h, result, 'Fetched all events successfully');
+    return h
+    .response({
+      success: true,
+      ...result,
+    })
+    .code(200);
   } catch (err) {
     return formatError(h, err);
   }

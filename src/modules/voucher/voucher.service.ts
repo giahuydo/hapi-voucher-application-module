@@ -117,8 +117,8 @@ export const getAllVouchers = async (query: PaginationQuery) => {
   const transformedVouchers = transformVoucherList(vouchers);
 
   return {
-    vouchers: transformedVouchers,
-    pagination: {
+    data: transformedVouchers,
+    meta: {
       page,
       limit,
       total,
