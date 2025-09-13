@@ -55,6 +55,14 @@ export class ConfigUtils {
   }
 
   /**
+   * Get Redis client instance (singleton)
+   */
+  static getRedisClient() {
+    const { getRedisClient } = require('./redis');
+    return getRedisClient();
+  }
+
+  /**
    * Get Bull queue configuration
    */
   static getBullConfig() {

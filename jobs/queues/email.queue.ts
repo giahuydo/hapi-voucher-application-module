@@ -1,23 +1,21 @@
 import Bull from 'bull';
-import dotenv from 'dotenv';
 import {logger} from '../../utils/logger';
-
-dotenv.config();
+import { getRedisClient } from '../../src/config/redis';
+import config from '../../src/config';
 
 const emailQueue = new Bull('emailQueue', {
-  redis: {
-    host: process.env.REDIS_HOST || '127.0.0.1',
-    port: Number(process.env.REDIS_PORT) || 6379
+  createClient: (type) => {
+    const client = getRedisClient();
+    return client.duplicate();
   },
   defaultJobOptions: {
-    attempts: 3, // Retry failed jobs 3 times
+    attempts: config.queue.bull.defaultJobOptions.attempts,
     backoff: {
-      type: 'exponential',
-      delay: 2000 // Start with 2 seconds delay
+      type: config.queue.bull.defaultJobOptions.backoff.type,
+      delay: config.queue.bull.defaultJobOptions.backoff.delay
     },
-    removeOnComplete: 100, // Keep last 100 completed jobs
-    removeOnFail: 50, // Keep last 50 failed jobs
-    delay: 0 // No initial delay
+    removeOnComplete: config.queue.bull.defaultJobOptions.removeOnComplete,
+    removeOnFail: config.queue.bull.defaultJobOptions.removeOnFail
   }
 });
 

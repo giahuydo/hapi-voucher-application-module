@@ -91,9 +91,9 @@ export const deleteVoucher = async (req: Request, h: ResponseToolkit) => {
 /**
  * Issue a new voucher for an event
  */
-export const requestVoucher = async (req: Request, h: ResponseToolkit) => {
+export const issueVoucher = async (req: Request, h: ResponseToolkit) => {
   try {
-    const { eventId } = req.params as { eventId: string };
+    const { eventId } = req.payload as { eventId: string };
     const { userId } = req.auth.credentials as { userId: string };
 
     const input: IssueVoucherInput = { eventId, userId };

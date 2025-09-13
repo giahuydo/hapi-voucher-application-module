@@ -1,14 +1,14 @@
 import { ServerRoute } from '@hapi/hapi';
 import * as Joi from 'joi';
 import {
-  requestVoucher,
+  issueVoucher,
   getAllVouchers,
   getVoucherById,
   useVoucher,
   releaseVoucher,
   deleteVoucher
 } from './voucher.handler';
-import {IdVoucherParamsSchema, eventIdParamSchema, getAllVouchersQuerySchema} from '../dto/voucher.input';
+import {IdVoucherParamsSchema, getAllVouchersQuerySchema, issueVoucherPayloadSchema} from '../dto/voucher.input';
 import { voucherSwaggerResponses } from './voucher.schemas';
 import { swaggerResponses } from '../../../../utils/schemas';
 
@@ -16,14 +16,14 @@ const voucherRoutes: ServerRoute[] = [
   // 🎟️ Issue a new voucher
   {
     method: 'POST',
-    path: '/events/{eventId}/vouchers',
+    path: '/vouchers/issue',
     options: {
       auth: 'jwt',
       tags: ['api', 'vouchers'],
       description: 'Issue a new voucher for a specific event',
-      notes: 'Requires authentication. Returns 456 if event is full.',
+      notes: 'Requires authentication. Event ID passed in request body. Returns 456 if event is full.',
       validate: {
-        params: eventIdParamSchema,
+        payload: issueVoucherPayloadSchema,
         failAction: (request, h, err) => {
           throw err;
         }
@@ -37,7 +37,7 @@ const voucherRoutes: ServerRoute[] = [
           }
         }
       },
-      handler: requestVoucher
+      handler: issueVoucher
     }
   },
 

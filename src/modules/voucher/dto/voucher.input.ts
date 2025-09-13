@@ -20,3 +20,10 @@ export const eventIdParamSchema = createInputSchemas.params.eventId;
  */
 export const getAllVouchersQuerySchema = createInputSchemas.query.voucherSearch;
 
+/**
+ * Payload schema for issuing a voucher
+ * Used in: POST /api/vouchers/issue
+ */
+export const issueVoucherPayloadSchema = Joi.object({
+  eventId: Joi.string().required().description('Event ID to issue voucher for')
+});
