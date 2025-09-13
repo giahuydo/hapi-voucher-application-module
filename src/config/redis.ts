@@ -17,6 +17,13 @@ export function getRedisClient(): IORedis {
   return client;
 }
 
+export async function initRedis(): Promise<IORedis> {
+  const c = getRedisClient();
+  await c.ping();
+  return c;
+}
+
+
 export function closeRedisClient(): Promise<void> {
   if (client) {
     return client.quit().then(() => {});

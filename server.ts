@@ -1,11 +1,12 @@
-import Hapi from '@hapi/hapi';
-import mongoose from 'mongoose';
+// Load environment variables first, before anything else uses process.env
 import * as dotenv from 'dotenv';
-
-// Load .env config
 dotenv.config();
 
-// Plugin imports
+import Hapi from '@hapi/hapi';
+import mongoose from 'mongoose';
+import { initRedis, closeRedisClient } from './src/config/redis';
+
+// Plugins
 import AuthJwtPlugin from './src/plugins/auth-jwt.plugin';
 import ErrorHandlerPlugin from './src/plugins/error-handler.plugin';
 import SwaggerPlugin from './src/plugins/swagger.plugin';
@@ -18,28 +19,28 @@ import eventRoutes from './src/modules/event/api/event.routes';
 import authRoutes from './src/modules/auth/api/auth.routes';
 import { userRoutes } from './src/modules/user/api/user.routes';
 
-// ─────────────────────────────────────────────────────────────
-
+// Helper: mark a route as public (auth: false)
 const preparePublicRoutes = (routes: Hapi.ServerRoute[]): Hapi.ServerRoute[] => {
   return routes.map((route) => ({
     ...route,
-    options: {
-      ...(route.options ?? {}),
-      auth: false,
-    },
+    options: { ...(route.options ?? {}), auth: false },
   }));
 };
 
-const init = async () => {
+async function init() {
   try {
-    // 1. Connect MongoDB first
+    // 1) Connect to MongoDB first
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/voucher_app';
-    await mongoose.connect(mongoUri);
+    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });
     console.log('✅ Connected to MongoDB');
 
-    // 2. Init Hapi server
-    const server: Hapi.Server = Hapi.server({
-      port: process.env.PORT || 3000,
+    // 2) Initialize Redis after Mongo
+    await initRedis(); // make sure initRedis() calls ping internally
+    console.log('✅ Redis ready');
+
+    // 3) Create Hapi server
+    const server = Hapi.server({
+      port: Number(process.env.PORT) || 3000,
       host: '0.0.0.0',
       routes: {
         cors: {
@@ -49,26 +50,19 @@ const init = async () => {
           credentials: true,
         },
       },
-      debug: {
-        request: ['error', 'uncaught'],
-      },
+      debug: { request: ['error', 'uncaught'] },
     });
     console.log('✅ Hapi server initialized');
 
-    // 3. Health Check
+    // 4) Health check route (no auth required)
     server.route({
       method: 'GET',
       path: '/',
-      options: {
-        auth: false,
-        description: 'Health check',
-        tags: ['api'],
-        handler: () => ({ message: '🎉 Hapi server is running!' }),
-      },
+      options: { auth: false, description: 'Health check', tags: ['api'] },
+      handler: () => ({ message: '🎉 Hapi server is running!' }),
     });
-    console.log('✅ Health check route registered');
 
-    // 4. Register plugins
+    // 5) Register plugins (auth, error handling, docs, schedulers, dashboards)
     await server.register([
       AuthJwtPlugin,
       ErrorHandlerPlugin,
@@ -78,32 +72,40 @@ const init = async () => {
     ]);
     console.log('✅ Plugins registered');
 
-    // 5. Register routes
+    // 6) Register routes (auth, voucher, event, user)
     const publicAuthRoutes = preparePublicRoutes(authRoutes);
     server.route([...publicAuthRoutes, ...voucherRoutes, ...eventRoutes, ...userRoutes]);
     console.log('✅ Routes registered');
 
-    // 6. Start server
+    // 7) Start server
     await server.start();
     console.log(`🚀 Server running at ${server.info.uri}`);
     console.log(`📚 Swagger docs at ${server.info.uri}/docs`);
 
-    // 7. Graceful shutdown
-    process.on('SIGTERM', async () => {
-      console.log('🛑 SIGTERM received. Cleaning up...');
-      await mongoose.disconnect();
-      await server.stop({ timeout: 10000 });
-      console.log('👋 Server stopped cleanly.');
-      process.exit(0);
-    });
+    // 8) Graceful shutdown on SIGTERM or SIGINT
+    const shutdown = async (signal: string) => {
+      console.log(`🛑 ${signal} received. Cleaning up...`);
+      try {
+        await server.stop({ timeout: 10000 });
+        await mongoose.disconnect();
+        await closeRedisClient();
+        console.log('👋 Server stopped cleanly.');
+        process.exit(0);
+      } catch (err) {
+        console.error('Error during shutdown:', err);
+        process.exit(1);
+      }
+    };
 
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
   } catch (err) {
     console.error('❌ Failed to start server:', err);
     process.exit(1);
   }
-};
+}
 
-// Catch unhandled rejections
+// Handle unhandled promise rejections globally
 process.on('unhandledRejection', (err) => {
   console.error('💥 Unhandled Rejection:', err);
   process.exit(1);
