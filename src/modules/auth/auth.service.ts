@@ -1,13 +1,11 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcryptjs';
+import * as jwt from 'jsonwebtoken';
 import { User } from '../user/user.model';
 import { RegisterInput, LoginInput } from './dto/auth.input';
 import { AuthResponseDTO } from './dto/auth.dto';
 import { transformAuthUser } from './auth.transformer';
 import { ValidationError, NotFoundError } from '../../../utils/errorHandler';
-import dotenv from 'dotenv';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+import config from '../../config';
 
 /**
  * Register new user
@@ -21,12 +19,18 @@ export const register = async (input: RegisterInput): Promise<AuthResponseDTO> =
   const newUser = new User({
     name: input.name,
     email: input.email,
-    password: input.password ? await bcrypt.hash(input.password, 10) : undefined,
+    password: input.password ? await bcrypt.hash(input.password, config.auth.bcrypt.saltRounds) : undefined,
   });
 
   const savedUser = await newUser.save();
 
-  const token = jwt.sign({ sub: savedUser._id }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign(
+    { sub: savedUser._id }, 
+    config.auth.jwt.secret, 
+    { 
+      expiresIn: config.auth.jwt.expiresIn,
+    } as jwt.SignOptions
+  );
 
   return {
     token,
@@ -48,7 +52,13 @@ export const login = async (input: LoginInput): Promise<AuthResponseDTO> => {
     throw new ValidationError('Invalid email or password');
   }
 
-  const token = jwt.sign({ sub: user._id }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign(
+    { sub: user._id }, 
+    config.auth.jwt.secret, 
+    { 
+      expiresIn: config.auth.jwt.expiresIn,
+    } as jwt.SignOptions
+  );
 
   return {
     token,

@@ -1,15 +1,46 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "CommonJS",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
-    "outDir": "./dist",
-    "rootDir": ".",
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
-    "skipLibCheck": true
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
-  "include": ["src/**/*", "src/types", "utils", "jobs/**/*"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "jobs/**/*",
+    "agenda/**/*",
+    "utils/**/*",
+    "server.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
 }
