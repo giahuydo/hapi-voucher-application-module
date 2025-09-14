@@ -1,32 +1,33 @@
-import * as VoucherService from '../../../src/modules/voucher/voucher.service';
-import * as UserService from '../../../src/modules/user/user.service';
-import { Event } from '../../../src/modules/event/event.model';
-import { Voucher } from '../../../src/modules/voucher/voucher.model';
-import emailQueue from '../../../jobs/queues/email.queue';
-import mongoose from 'mongoose';
-import { generateVoucherCode } from '../../../utils/generateVoucherCode';
-import { deleteVoucher } from '../../../src/modules/voucher/voucher.service';
-import { NotFoundError } from '../../../utils/errorHandler';
-import { sendVoucherNotificationEmail } from '../../../src/modules/voucher/voucher.service';
+import * as VoucherService from "../../../src/modules/voucher/voucher.service";
+import * as UserService from "../../../src/modules/user/user.service";
+import { Event } from "../../../src/modules/event/event.model";
+import { Voucher } from "../../../src/modules/voucher/voucher.model";
+import emailQueue from "../../../jobs/queues/email.queue";
+import mongoose from "mongoose";
+import { generateVoucherCode } from "../../../utils/generateVoucherCode";
+import { deleteVoucher } from "../../../src/modules/voucher/voucher.service";
+import { NotFoundError } from "../../../utils/errorHandler";
+import { sendVoucherNotificationEmail } from "../../../src/modules/voucher/voucher.service";
+import Queue from "bull";
 
 // Mock models and modules
-jest.mock('../../../src/modules/event/event.model');
-jest.mock('../../../src/modules/voucher/voucher.model');
-jest.mock('../../../src/modules/user/user.service', () => ({
+jest.mock("../../../src/modules/event/event.model");
+jest.mock("../../../src/modules/voucher/voucher.model");
+jest.mock("../../../src/modules/user/user.service", () => ({
   getUserById: jest.fn(),
 }));
-jest.mock('../../../jobs/queues/email.queue', () => ({
+jest.mock("../../../jobs/queues/email.queue", () => ({
   __esModule: true,
   default: {
     add: jest.fn(),
   },
 }));
-jest.mock('../../../utils/generateVoucherCode', () => ({
+jest.mock("../../../utils/generateVoucherCode", () => ({
   generateVoucherCode: jest.fn(),
 }));
 
-jest.mock('mongoose', () => ({
-  ...jest.requireActual('mongoose'),
+jest.mock("mongoose", () => ({
+  ...jest.requireActual("mongoose"),
   startSession: jest.fn(),
 }));
 
@@ -44,7 +45,7 @@ const mockFindByIdWithSession = (model: any, returnedData: any) => {
   });
 };
 
-describe('issueVoucher', () => {
+describe("issueVoucher", () => {
   let session: any;
   let validEventId: string;
   let genCode: jest.Mock;
@@ -55,20 +56,22 @@ describe('issueVoucher', () => {
     validEventId = new mongoose.Types.ObjectId().toHexString();
 
     // Default mock user
-    (UserService.getUserById as jest.Mock).mockResolvedValue({ email: 'test@example.com' });
+    (UserService.getUserById as jest.Mock).mockResolvedValue({
+      email: "test@example.com",
+    });
 
     (emailQueue.add as jest.Mock).mockResolvedValue(true);
-    
+
     // Setup generateVoucherCode mock
     genCode = generateVoucherCode as jest.Mock;
-    genCode.mockReturnValue('VOUCHER123');
+    genCode.mockReturnValue("VOUCHER123");
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('should issue voucher if event has quantity left', async () => {
+  it("should issue voucher if event has quantity left", async () => {
     const mockEvent = {
       _id: validEventId,
       maxQuantity: 2,
@@ -77,19 +80,22 @@ describe('issueVoucher', () => {
     };
 
     mockFindByIdWithSession(Event, mockEvent);
-    (Voucher.create as jest.Mock).mockResolvedValue([{ code: 'VOUCHER123' }]);
+    (Voucher.create as jest.Mock).mockResolvedValue([{ code: "VOUCHER123" }]);
 
-    const result = await VoucherService.issueVoucher({ eventId: validEventId, userId: 'u1' });
+    const result = await VoucherService.issueVoucher({
+      eventId: validEventId,
+      userId: "u1",
+    });
 
-    expect(result.code).toBe('VOUCHER123');
+    expect(result.code).toBe("VOUCHER123");
     expect(session.commitTransaction).toHaveBeenCalled();
-    expect(emailQueue.add).toHaveBeenCalledWith('send-voucher-email', {
-      to: 'test@example.com',
-      code: 'VOUCHER123',
+    expect(emailQueue.add).toHaveBeenCalledWith("send-voucher-email", {
+      to: "test@example.com",
+      code: "VOUCHER123",
     });
   });
 
-  it('should throw 456 if event is out of vouchers', async () => {
+  it("should throw 456 if event is out of vouchers", async () => {
     const mockEvent = {
       _id: validEventId,
       maxQuantity: 1,
@@ -100,13 +106,13 @@ describe('issueVoucher', () => {
     mockFindByIdWithSession(Event, mockEvent);
 
     await expect(
-      VoucherService.issueVoucher({ eventId: validEventId, userId: 'u1' })
+      VoucherService.issueVoucher({ eventId: validEventId, userId: "u1" })
     ).rejects.toThrow(expect.objectContaining({ statusCode: 456 }));
 
     expect(session.abortTransaction).toHaveBeenCalled();
   });
 
-  it('should retry transaction on transient error', async () => {
+  it("should retry transaction on transient error", async () => {
     const mockEvent = {
       _id: validEventId,
       maxQuantity: 3,
@@ -115,19 +121,22 @@ describe('issueVoucher', () => {
     };
 
     mockFindByIdWithSession(Event, mockEvent);
-    genCode.mockReturnValueOnce('FAIL-CODE').mockReturnValueOnce('RETRY456');
-    
+    genCode.mockReturnValueOnce("FAIL-CODE").mockReturnValueOnce("RETRY456");
+
     (Voucher.create as jest.Mock)
-      .mockRejectedValueOnce({ name: 'TransientTransactionError' })
-      .mockResolvedValueOnce([{ code: 'RETRY456' }]);
+      .mockRejectedValueOnce({ name: "TransientTransactionError" })
+      .mockResolvedValueOnce([{ code: "RETRY456" }]);
 
-    const result = await VoucherService.issueVoucher({ eventId: validEventId, userId: 'u1' });
+    const result = await VoucherService.issueVoucher({
+      eventId: validEventId,
+      userId: "u1",
+    });
 
-    expect(result.code).toBe('RETRY456');
+    expect(result.code).toBe("RETRY456");
     expect(session.commitTransaction).toHaveBeenCalled();
   });
 
-  it('should only issue up to maxQuantity vouchers even with concurrent requests', async () => {
+  it("should only issue up to maxQuantity vouchers even with concurrent requests", async () => {
     let issuedCount = 0;
 
     const eventMock = {
@@ -151,15 +160,15 @@ describe('issueVoucher', () => {
     });
 
     const requests = [
-      VoucherService.issueVoucher({ eventId: validEventId, userId: 'u1' }),
-      VoucherService.issueVoucher({ eventId: validEventId, userId: 'u2' }),
-      VoucherService.issueVoucher({ eventId: validEventId, userId: 'u3' }),
+      VoucherService.issueVoucher({ eventId: validEventId, userId: "u1" }),
+      VoucherService.issueVoucher({ eventId: validEventId, userId: "u2" }),
+      VoucherService.issueVoucher({ eventId: validEventId, userId: "u3" }),
     ];
 
     const results = await Promise.allSettled(requests);
 
-    const fulfilled = results.filter(r => r.status === 'fulfilled');
-    const rejected = results.filter(r => r.status === 'rejected');
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
 
     expect(fulfilled).toHaveLength(1);
     expect(rejected).toHaveLength(2);
@@ -169,18 +178,17 @@ describe('issueVoucher', () => {
       expect(r.reason.statusCode).toBe(456);
     });
   });
-  
 });
 
-describe('deleteVoucher', () => {
+describe("deleteVoucher", () => {
   let mockVoucher: any;
 
   beforeEach(() => {
     mockVoucher = {
       _id: new mongoose.Types.ObjectId(),
       eventId: new mongoose.Types.ObjectId(),
-      code: 'TEST123',
-      issuedTo: 'user123',
+      code: "TEST123",
+      issuedTo: "user123",
       isUsed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -191,88 +199,156 @@ describe('deleteVoucher', () => {
     jest.clearAllMocks();
   });
 
-  it('should delete an unused voucher successfully', async () => {
+  it("should delete an unused voucher successfully", async () => {
     // Mock findById to return an unused voucher
-    const findByIdSpy = jest.spyOn(Voucher, 'findById').mockResolvedValue(mockVoucher);
-    
+    const findByIdSpy = jest
+      .spyOn(Voucher, "findById")
+      .mockResolvedValue(mockVoucher);
+
     // Mock findByIdAndDelete to return the deleted voucher
-    const findByIdAndDeleteSpy = jest.spyOn(Voucher, 'findByIdAndDelete').mockResolvedValue(mockVoucher);
+    const findByIdAndDeleteSpy = jest
+      .spyOn(Voucher, "findByIdAndDelete")
+      .mockResolvedValue(mockVoucher);
 
     const result = await deleteVoucher(mockVoucher._id.toString());
 
     expect(findByIdSpy).toHaveBeenCalledWith(mockVoucher._id.toString());
-    expect(findByIdAndDeleteSpy).toHaveBeenCalledWith(mockVoucher._id.toString());
-    expect(result).toEqual({ message: 'Voucher deleted successfully' });
+    expect(findByIdAndDeleteSpy).toHaveBeenCalledWith(
+      mockVoucher._id.toString()
+    );
+    expect(result).toEqual({ message: "Voucher deleted successfully" });
   });
 
-  it('should throw NotFoundError when voucher does not exist', async () => {
+  it("should throw NotFoundError when voucher does not exist", async () => {
     // Mock findById to return null
-    jest.spyOn(Voucher, 'findById').mockResolvedValue(null);
+    jest.spyOn(Voucher, "findById").mockResolvedValue(null);
 
-    await expect(deleteVoucher('nonexistentid')).rejects.toThrow(NotFoundError);
-    await expect(deleteVoucher('nonexistentid')).rejects.toThrow('Voucher with ID nonexistentid not found');
+    await expect(deleteVoucher("nonexistentid")).rejects.toThrow(NotFoundError);
+    await expect(deleteVoucher("nonexistentid")).rejects.toThrow(
+      "Voucher with ID nonexistentid not found"
+    );
   });
 
-  it('should throw ConflictError when trying to delete a used voucher', async () => {
+  it("should throw ConflictError when trying to delete a used voucher", async () => {
     // Mock findById to return a used voucher
     const usedVoucher = { ...mockVoucher, isUsed: true };
-    jest.spyOn(Voucher, 'findById').mockResolvedValue(usedVoucher);
+    jest.spyOn(Voucher, "findById").mockResolvedValue(usedVoucher);
 
-    await expect(deleteVoucher(mockVoucher._id.toString())).rejects.toThrow('Cannot delete a voucher that has been used');
+    await expect(deleteVoucher(mockVoucher._id.toString())).rejects.toThrow(
+      "Cannot delete a voucher that has been used"
+    );
   });
 
-  it('should throw error when findByIdAndDelete fails', async () => {
+  it("should throw error when findByIdAndDelete fails", async () => {
     // Mock findById to return an unused voucher
-    jest.spyOn(Voucher, 'findById').mockResolvedValue(mockVoucher);
-    
-    // Mock findByIdAndDelete to return null (deletion failed)
-    jest.spyOn(Voucher, 'findByIdAndDelete').mockResolvedValue(null);
+    jest.spyOn(Voucher, "findById").mockResolvedValue(mockVoucher);
 
-    await expect(deleteVoucher(mockVoucher._id.toString())).rejects.toThrow('Failed to delete voucher');
+    // Mock findByIdAndDelete to return null (deletion failed)
+    jest.spyOn(Voucher, "findByIdAndDelete").mockResolvedValue(null);
+
+    await expect(deleteVoucher(mockVoucher._id.toString())).rejects.toThrow(
+      "Failed to delete voucher"
+    );
   });
 
-  it('should handle database errors gracefully', async () => {
+  it("should handle database errors gracefully", async () => {
     // Mock findById to throw a database error
-    jest.spyOn(Voucher, 'findById').mockRejectedValue(new Error('Database connection error'));
+    jest
+      .spyOn(Voucher, "findById")
+      .mockRejectedValue(new Error("Database connection error"));
 
-    await expect(deleteVoucher(mockVoucher._id.toString())).rejects.toThrow('Database connection error');
+    await expect(deleteVoucher(mockVoucher._id.toString())).rejects.toThrow(
+      "Database connection error"
+    );
   });
 });
 
-describe('sendVoucherNotificationEmail', () => {
+describe("sendVoucherNotificationEmail", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('should queue email job when user has email', async () => {
-    const userId = 'user123';
-    const code = 'TEST123';
-    
-    (UserService.getUserById as jest.Mock).mockResolvedValue({ 
-      email: 'test@example.com' 
+  it("should queue email job when user has email", async () => {
+    const userId = "user123";
+    const code = "TEST123";
+
+    (UserService.getUserById as jest.Mock).mockResolvedValue({
+      email: "test@example.com",
     });
     (emailQueue.add as jest.Mock).mockResolvedValue(true);
 
     await sendVoucherNotificationEmail(userId, code);
 
     expect(UserService.getUserById).toHaveBeenCalledWith(userId);
-    expect(emailQueue.add).toHaveBeenCalledWith('send-voucher-email', {
-      to: 'test@example.com',
-      code: code
+    expect(emailQueue.add).toHaveBeenCalledWith("send-voucher-email", {
+      to: "test@example.com",
+      code: code,
     });
   });
 
-  it('should not queue email when user has no email', async () => {
-    const userId = 'user123';
-    const code = 'TEST123';
-    
-    (UserService.getUserById as jest.Mock).mockResolvedValue({ 
-      email: null 
+  it("should not queue email when user has no email", async () => {
+    const userId = "user123";
+    const code = "TEST123";
+
+    (UserService.getUserById as jest.Mock).mockResolvedValue({
+      email: null,
     });
 
     await sendVoucherNotificationEmail(userId, code);
 
     expect(UserService.getUserById).toHaveBeenCalledWith(userId);
     expect(emailQueue.add).not.toHaveBeenCalled();
+  });
+
+  const USE_REAL_REDIS = process.env.USE_REAL_REDIS === 'true';
+  describe("Redis Queue (integration with voucher)", () => {
+    let queue: Queue.Queue;
+
+    beforeAll(async () => {
+      queue = new Queue("emailQueue", process.env.REDIS_URL || "redis://127.0.0.1:6379");
+      await queue.isReady();
+      // Clear existing jobs
+      await queue.obliterate({ force: true }).catch(() => {});
+    }, 20000);
+
+    afterAll(async () => {
+      await queue.close();
+    });
+
+    it("should enqueue a voucher email job", async () => {
+      const jobData = { to: "test@example.com", code: "VC-123" };
+  
+      await queue.add(jobData);
+  
+      const jobs = await queue.getWaiting();
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0].data).toEqual(jobData);
+    }, 20000);
+  
+
+    it("should process a voucher email job", async () => {
+      const jobData = { to: "user@example.com", code: "VC-999" };
+  
+      const processor = jest.fn(async (job) => {
+        expect(job.data).toEqual(jobData);
+        return { ok: true };
+      });
+  
+      queue.process(processor);
+      await queue.isReady();
+  
+      await queue.add(jobData);
+  
+      await new Promise<void>((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error("Timed out waiting for completion")), 10000);
+        queue.once("completed", () => { clearTimeout(t); resolve(); });
+      });
+  
+      expect(processor).toHaveBeenCalledWith(expect.objectContaining({ data: jobData }));
+  
+      // Clean up jobs
+      await queue.clean(0, "completed");
+      await queue.clean(0, "failed");
+    }, 30000);
   });
 });
