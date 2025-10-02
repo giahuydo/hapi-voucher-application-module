@@ -19,7 +19,7 @@ import {
 } from '../dto/event.input';
 
 import { eventSwaggerResponses } from './event.schemas';
-import { swaggerResponses } from '../../../../utils/schemas';
+import { sharedErrorSchemas } from '../../../../utils/schemas';
 
 const eventRoutes: ServerRoute[] = [
   {
@@ -41,7 +41,10 @@ const eventRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: eventSwaggerResponses.listSuccess,
-            401: swaggerResponses.common[401],
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            }
           }
         }
       }
@@ -64,8 +67,14 @@ const eventRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: eventSwaggerResponses.singleSuccess,
-            401: swaggerResponses.common[401],
-            404: swaggerResponses.common[404]
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            },
+            404: {
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
+            }
           }
         }
       }
@@ -87,28 +96,14 @@ const eventRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            201: {
-              description: 'Event created successfully',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  description: Joi.string(),
-                  maxQuantity: Joi.number(),
-                  issuedCount: Joi.number(),
-                  isActive: Joi.boolean(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                })
-              })
-            },
+            201: eventSwaggerResponses.createSuccess,
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             },
             400: {
-              description: 'Validation error'
+              description: 'Bad Request',
+              schema: sharedErrorSchemas.badRequest
             }
           }
         }
@@ -132,31 +127,18 @@ const eventRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: {
-              description: 'Event updated successfully',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  description: Joi.string(),
-                  maxQuantity: Joi.number(),
-                  issuedCount: Joi.number(),
-                  isActive: Joi.boolean(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                })
-              })
-            },
+            200: eventSwaggerResponses.updateSuccess,
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             },
             404: {
-              description: 'Event not found'
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
             },
             400: {
-              description: 'Validation error'
+              description: 'Bad Request',
+              schema: sharedErrorSchemas.badRequest
             }
           }
         }
@@ -180,8 +162,14 @@ const eventRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: eventSwaggerResponses.deleteSuccess,
-            401: swaggerResponses.common[401],
-            404: swaggerResponses.common[404],
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            },
+            404: {
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
+            }
           }
         }
       }
@@ -206,18 +194,21 @@ const eventRoutes: ServerRoute[] = [
             200: {
               description: 'Edit lock requested successfully',
               schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string()
-              })
+                success: Joi.boolean().default(true),
+                message: Joi.string().default('Edit lock requested successfully')
+              }).label('EditLockRequestedResponse')
             },
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             },
             404: {
-              description: 'Event not found'
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
             },
             409: {
-              description: 'Event is already locked by another user'
+              description: 'Conflict - Resource already exists or in invalid state',
+              schema: sharedErrorSchemas.conflict
             }
           }
         }
@@ -243,15 +234,17 @@ const eventRoutes: ServerRoute[] = [
             200: {
               description: 'Edit lock released successfully',
               schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string()
-              })
+                success: Joi.boolean().default(true),
+                message: Joi.string().default('Edit lock released successfully')
+              }).label('EditLockReleasedResponse')
             },
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             },
             404: {
-              description: 'Event not found'
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
             }
           }
         }
@@ -277,15 +270,17 @@ const eventRoutes: ServerRoute[] = [
             200: {
               description: 'Edit lock maintained successfully',
               schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string()
-              })
+                success: Joi.boolean().default(true),
+                message: Joi.string().default('Edit lock maintained successfully')
+              }).label('EditLockMaintainedResponse')
             },
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             },
             404: {
-              description: 'Event not found'
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
             }
           }
         }

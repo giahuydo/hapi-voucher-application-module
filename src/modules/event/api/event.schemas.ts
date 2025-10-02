@@ -58,7 +58,7 @@ export const eventResponseSchemas = {
     // Additional stats
     availableCount: Joi.number().description('Number of vouchers still available'),
     usagePercentage: Joi.number().description('Percentage of vouchers used')
-  })
+  }).label('EventWithStats')
 };
 
 // ============================================================================
@@ -69,60 +69,63 @@ export const eventSwaggerResponses = {
   // Create event response
   createSuccess: {
     description: 'Event created successfully',
-    schema: createResponseSchema.single(eventResponseSchemas.event)
+    schema: Joi.object({
+      success: Joi.boolean().default(true),
+      message: Joi.string().default('Event created successfully'),
+      data: eventResponseSchemas.event
+    }).label('CreateEventResponse')
   },
 
   // Get event list response
   listSuccess: {
     description: 'List of all events',
-    schema: createResponseSchema.single(Joi.object({
-      data: Joi.array().items(eventResponseSchemas.event),
-      meta: Joi.object({
-        total: Joi.number(),
-        page: Joi.number(),
-        limit: Joi.number(),
-        totalPages: Joi.number(),
-        hasNextPage: Joi.boolean(),
-        hasPrevPage: Joi.boolean(),
-        nextPage: Joi.number().allow(null),
-        prevPage: Joi.number().allow(null)
-      })
-    }))
+    schema: Joi.object({
+      success: Joi.boolean().default(true),
+      message: Joi.string().default('Events retrieved successfully'),
+      data: Joi.object({
+        data: Joi.array().items(eventResponseSchemas.event),
+        meta: Joi.object({
+          total: Joi.number(),
+          page: Joi.number(),
+          limit: Joi.number(),
+          totalPages: Joi.number(),
+          hasNextPage: Joi.boolean(),
+          hasPrevPage: Joi.boolean(),
+          nextPage: Joi.number().allow(null),
+          prevPage: Joi.number().allow(null)
+        }).label('EventListMeta')
+      }).label('EventListData')
+    }).label('EventListResponse')
   },
 
   // Get single event response
   singleSuccess: {
     description: 'Event details',
-    schema: createResponseSchema.single(eventResponseSchemas.event)
+    schema: Joi.object({
+      success: Joi.boolean().default(true),
+      message: Joi.string().default('Event retrieved successfully'),
+      data: eventResponseSchemas.event
+    }).label('SingleEventResponse')
   },
 
   // Update event response
   updateSuccess: {
     description: 'Event updated successfully',
-    schema: createResponseSchema.single(eventResponseSchemas.event)
+    schema: Joi.object({
+      success: Joi.boolean().default(true),
+      message: Joi.string().default('Event updated successfully'),
+      data: eventResponseSchemas.event
+    }).label('UpdateEventResponse')
   },
 
   // Delete event response
   deleteSuccess: {
     description: 'Event deleted successfully',
-    schema: createResponseSchema.success('Event deleted successfully')
+    schema: Joi.object({
+      success: Joi.boolean().default(true),
+      message: Joi.string().default('Event deleted successfully')
+    }).label('DeleteEventResponse')
   }
 };
 
-// ============================================================================
-// LEGACY SUPPORT (for backward compatibility)
-// ============================================================================
-
-// Legacy schemas for backward compatibility
-export const eventSchemas = {
-  eventObject: eventResponseSchemas.event,
-  eventWithStats: eventResponseSchemas.eventWithStats,
-  paginationObject: responseSchemas.pagination,
-  successResponse: responseSchemas.success,
-  errorResponse: responseSchemas.error,
-  responses: {
-    401: swaggerResponses.common[401],
-    404: swaggerResponses.common[404],
-    409: swaggerResponses.common[409]
-  }
-};
+// Legacy schemas removed - use shared schemas from /utils/schemas.ts instead

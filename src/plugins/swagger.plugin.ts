@@ -16,18 +16,7 @@ const SwaggerPlugin: Plugin<null> = {
           info: {
             title: 'Voucher Management API',
             version: '1.0.0',
-            description: `RESTful API for event-voucher system with JWT auth & Agenda job
-
-## 🔐 Authentication Instructions:
-1. **Login/Register**: Use the auth endpoints to get a JWT token
-2. **Copy Token**: Copy the token value from the response (without "Bearer" prefix)
-3. **Authorize**: Click the "Authorize" button (🔒) and paste the token
-4. **Use API**: All protected endpoints will now work with your token
-
-## 📝 Example:
-- Login response: \`{"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."}\`
-- Copy: \`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\`
-- Paste in Authorize modal (the "Bearer" prefix will be added automatically)`
+            description: `RESTful API for event-voucher system with JWT auth & Agenda job`
           },
           documentationPath: '/docs',
           securityDefinitions: {
@@ -45,7 +34,10 @@ const SwaggerPlugin: Plugin<null> = {
             { name: 'auth', description: 'Authentication (public)' },
             { name: 'vouchers', description: 'Voucher operations' },
             { name: 'events', description: 'Event management' }
-          ]
+          ],
+          // Minimize model generation
+          reuseDefinitions: true,
+          definitionPrefix: 'useLabel'
         }
       }
     ]);

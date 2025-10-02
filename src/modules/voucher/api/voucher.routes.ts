@@ -10,7 +10,7 @@ import {
 } from './voucher.handler';
 import {IdVoucherParamsSchema, getAllVouchersQuerySchema, issueVoucherPayloadSchema} from '../dto/voucher.input';
 import { voucherSwaggerResponses } from './voucher.schemas';
-import { swaggerResponses } from '../../../../utils/schemas';
+import { sharedErrorSchemas, labeledResponseSchemas, swaggerResponses, createResponseSchema } from '../../../../utils/schemas';
 
 const voucherRoutes: ServerRoute[] = [
   // 🎟️ Issue a new voucher
@@ -32,7 +32,10 @@ const voucherRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: voucherSwaggerResponses.issueSuccess,
-            401: swaggerResponses.common[401],
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            },
             456: voucherSwaggerResponses.exhausted
           }
         }
@@ -61,7 +64,10 @@ const voucherRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: voucherSwaggerResponses.listSuccess,
-            401: swaggerResponses.common[401]
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            }
           }
         }
       }
@@ -88,8 +94,14 @@ const voucherRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: voucherSwaggerResponses.singleSuccess,
-            401: swaggerResponses.common[401],
-            404: swaggerResponses.common[404]
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            },
+            404: {
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
+            }
           }
         }
       }
@@ -114,10 +126,22 @@ const voucherRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: { description: 'Voucher marked as used' },
-            401: swaggerResponses.common[401],
-            404: swaggerResponses.common[404],
-            409: swaggerResponses.common[409]
+            200: {
+              description: 'Voucher marked as used',
+              schema: labeledResponseSchemas.success('Voucher marked as used', 'UseVoucherResponse')
+            },
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            },
+            404: {
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
+            },
+            409: {
+              description: 'Conflict - Resource already exists or in invalid state',
+              schema: sharedErrorSchemas.conflict
+            }
           }
         }
       }
@@ -142,15 +166,24 @@ const voucherRoutes: ServerRoute[] = [
       plugins: {
         'hapi-swagger': {
           responses: {
-            200: { description: 'Voucher released successfully' },
-            401: swaggerResponses.common[401],
-            404: swaggerResponses.common[404],
-            409: { 
+            200: {
+              description: 'Voucher released successfully',
+              schema: labeledResponseSchemas.success('Voucher released successfully', 'ReleaseVoucherResponse')
+            },
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            },
+            404: {
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
+            },
+            409: {
               description: 'Voucher already released',
               schema: Joi.object({
-                success: Joi.boolean(),
+                success: Joi.boolean().default(false),
                 message: Joi.string().default('Voucher already released')
-              })
+              }).label('VoucherAlreadyReleasedResponse')
             }
           }
         }
@@ -178,14 +211,20 @@ const voucherRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: voucherSwaggerResponses.deleteSuccess,
-            401: swaggerResponses.common[401],
-            404: swaggerResponses.common[404],
-            409: { 
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            },
+            404: {
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
+            },
+            409: {
               description: 'Cannot delete used voucher',
               schema: Joi.object({
-                success: Joi.boolean(),
+                success: Joi.boolean().default(false),
                 message: Joi.string().default('Cannot delete a voucher that has been used')
-              })
+              }).label('CannotDeleteUsedVoucherResponse')
             }
           }
         }

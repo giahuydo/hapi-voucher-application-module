@@ -45,12 +45,12 @@ export const voucherResponseSchemas = {
     ...baseSchemas.timestamps,
     // Populated event information
     event: responseSchemas.objects.event.optional()
-  }),
+  }).label('VoucherWithEvent'),
 
   // Voucher code response (for issue voucher)
   voucherCode: Joi.object({
     code: Joi.string().description('Generated voucher code')
-  })
+  }).label('VoucherCode')
 };
 
 // ============================================================================
@@ -61,36 +61,52 @@ export const voucherSwaggerResponses = {
   // Issue voucher response
   issueSuccess: {
     description: 'Voucher issued successfully',
-    schema: createResponseSchema.single(voucherResponseSchemas.voucherCode)
+    schema: Joi.object({
+      success: Joi.boolean().default(true),
+      message: Joi.string().default('Voucher issued successfully'),
+      data: voucherResponseSchemas.voucherCode
+    }).label('IssueVoucherResponse')
   },
 
   // Get voucher list response
   listSuccess: {
     description: 'List of all vouchers with populated event information',
-    schema: createResponseSchema.single(Joi.object({
-      vouchers: Joi.array().items(voucherResponseSchemas.voucherWithEvent),
-      pagination: responseSchemas.pagination
-    }))
+    schema: Joi.object({
+      success: Joi.boolean().default(true),
+      message: Joi.string().default('Vouchers retrieved successfully'),
+      data: Joi.object({
+        vouchers: Joi.array().items(voucherResponseSchemas.voucherWithEvent),
+        pagination: responseSchemas.pagination
+      }).label('VoucherListData')
+    }).label('VoucherListResponse')
   },
 
   // Get single voucher response
   singleSuccess: {
     description: 'Voucher details with populated event information',
-    schema: createResponseSchema.single(voucherResponseSchemas.voucherWithEvent)
+    schema: Joi.object({
+      success: Joi.boolean().default(true),
+      message: Joi.string().default('Voucher retrieved successfully'),
+      data: voucherResponseSchemas.voucherWithEvent
+    }).label('SingleVoucherResponse')
   },
 
   // Delete voucher response
   deleteSuccess: {
     description: 'Voucher deleted successfully',
-    schema: createResponseSchema.single(Joi.object({
+    schema: Joi.object({
+      success: Joi.boolean().default(true),
       message: Joi.string().default('Voucher deleted successfully')
-    }))
+    }).label('DeleteVoucherResponse')
   },
 
   // Voucher exhausted
   exhausted: {
     description: 'Voucher exhausted',
-    schema: createResponseSchema.error('Voucher exhausted')
+    schema: Joi.object({
+      success: Joi.boolean().default(false),
+      message: Joi.string().default('Voucher exhausted')
+    }).label('VoucherExhaustedResponse')
   }
 };
 
@@ -107,27 +123,4 @@ export function generateVoucherSearchSchema() {
   });
 }
 
-// ============================================================================
-// LEGACY SUPPORT (for backward compatibility)
-// ============================================================================
-
-// Legacy schemas for backward compatibility
-export const voucherSchemas = {
-  eventObject: responseSchemas.objects.event,
-  voucherObject: voucherResponseSchemas.voucherWithEvent,
-  paginationObject: responseSchemas.pagination,
-  successResponse: responseSchemas.success,
-  errorResponse: responseSchemas.error,
-  responses: {
-    401: swaggerResponses.common[401],
-    404: swaggerResponses.common[404],
-    409: swaggerResponses.common[409]
-  }
-};
-
-export const commonSchemas = {
-  successResponse: responseSchemas.success,
-  errorResponse: responseSchemas.error,
-  paginationObject: responseSchemas.pagination,
-  responses: swaggerResponses.common
-};
+// Legacy schemas removed - use shared schemas from /utils/schemas.ts instead

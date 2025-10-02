@@ -2,6 +2,7 @@ import { ServerRoute } from '@hapi/hapi';
 import * as Joi from 'joi';
 import { loginHandler, registerHandler } from './auth.handler';
 import { loginSchema, registerSchema } from '../dto/auth.input';
+import { createResponseSchema, responseSchemas } from '../../../../utils/schemas';
 
 const authRoutes: ServerRoute[] = [
   {
@@ -25,25 +26,20 @@ const authRoutes: ServerRoute[] = [
             201: {
               description: 'User registered successfully - Copy the token from data.token',
               schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
+                success: Joi.boolean().default(true),
+                message: Joi.string().default('User registered successfully'),
                 data: Joi.object({
                   token: Joi.string().description('JWT token - Copy this value and paste in Authorize modal'),
-                  user: Joi.object({
-                    id: Joi.string(),
-                    name: Joi.string(),
-                    email: Joi.string().email(),
-                    role: Joi.string()
-                  })
+                  user: responseSchemas.objects.user
                 })
-              })
+              }).label('RegisterResponse')
             },
             400: {
               description: 'Validation error or email already exists',
               schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string()
-              })
+                success: Joi.boolean().default(false),
+                message: Joi.string().default('Validation error or email already exists')
+              }).label('ErrorResponse')
             }
           }
         }
@@ -74,20 +70,15 @@ const authRoutes: ServerRoute[] = [
               schema: Joi.object({
                 success: Joi.boolean(),
                 token: Joi.string().description('JWT token - Copy this value and paste in Authorize modal (without Bearer prefix)'),
-                user: Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  email: Joi.string().email(),
-                  role: Joi.string()
-                })
+                user: responseSchemas.objects.user
               })
             },
             401: {
               description: 'Invalid credentials',
               schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string()
-              })
+                success: Joi.boolean().default(false),
+                message: Joi.string().default('Invalid credentials')
+              }).label('InvalidCredentialsResponse')
             }
           }
         }

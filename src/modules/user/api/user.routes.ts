@@ -6,6 +6,13 @@ import {
   updateUserSchema,
   idParamSchema,
 } from '../dto/user.input';
+import { 
+  responseSchemas, 
+  sharedErrorSchemas,
+  labeledResponseSchemas,
+  swaggerResponses,
+  createResponseSchema
+} from '../../../../utils/schemas';
 
 export const userRoutes: ServerRoute[] = [
   {
@@ -25,24 +32,15 @@ export const userRoutes: ServerRoute[] = [
           responses: {
             201: {
               description: 'User created successfully',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  email: Joi.string().email(),
-                  role: Joi.string(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                })
-              })
+              schema: labeledResponseSchemas.single(responseSchemas.objects.user, 'CreateUserResponse')
             },
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             },
             400: {
-              description: 'Validation error'
+              description: 'Bad Request',
+              schema: sharedErrorSchemas.badRequest
             }
           }
         }
@@ -63,21 +61,11 @@ export const userRoutes: ServerRoute[] = [
           responses: {
             200: {
               description: 'List of all users',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.array().items(Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  email: Joi.string().email(),
-                  role: Joi.string(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                }))
-              })
+              schema: labeledResponseSchemas.list(responseSchemas.objects.user, 'UserListResponse')
             },
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             }
           }
         }
@@ -101,24 +89,15 @@ export const userRoutes: ServerRoute[] = [
           responses: {
             200: {
               description: 'User details',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  email: Joi.string().email(),
-                  role: Joi.string(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                })
-              })
+              schema: labeledResponseSchemas.single(responseSchemas.objects.user, 'SingleUserResponse')
             },
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             },
             404: {
-              description: 'User not found'
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
             }
           }
         }
@@ -143,27 +122,19 @@ export const userRoutes: ServerRoute[] = [
           responses: {
             200: {
               description: 'User updated successfully',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  email: Joi.string().email(),
-                  role: Joi.string(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                })
-              })
+              schema: labeledResponseSchemas.single(responseSchemas.objects.user, 'UpdateUserResponse')
             },
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             },
             404: {
-              description: 'User not found'
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
             },
             400: {
-              description: 'Validation error'
+              description: 'Bad Request',
+              schema: sharedErrorSchemas.badRequest
             }
           }
         }
@@ -187,16 +158,15 @@ export const userRoutes: ServerRoute[] = [
           responses: {
             200: {
               description: 'User deleted successfully',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string()
-              })
+              schema: labeledResponseSchemas.success('User deleted successfully', 'DeleteUserResponse')
             },
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             },
             404: {
-              description: 'User not found'
+              description: 'Resource not found',
+              schema: sharedErrorSchemas.notFound
             }
           }
         }
@@ -217,21 +187,11 @@ export const userRoutes: ServerRoute[] = [
           responses: {
             200: {
               description: 'Current user details',
-              schema: Joi.object({
-                success: Joi.boolean(),
-                message: Joi.string(),
-                data: Joi.object({
-                  id: Joi.string(),
-                  name: Joi.string(),
-                  email: Joi.string().email(),
-                  role: Joi.string(),
-                  createdAt: Joi.date(),
-                  updatedAt: Joi.date()
-                })
-              })
+              schema: labeledResponseSchemas.single(responseSchemas.objects.user, 'CurrentUserResponse')
             },
             401: {
-              description: 'Unauthorized - Invalid or missing token'
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
             }
           }
         }

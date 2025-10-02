@@ -65,7 +65,7 @@ export const responseSchemas = {
     totalPages: Joi.number().description('Total number of pages'),
     hasNext: Joi.boolean().description('Whether there is a next page'),
     hasPrev: Joi.boolean().description('Whether there is a previous page')
-  }),
+  }).label('Pagination'),
 
   // Common object schemas
   objects: {
@@ -76,7 +76,7 @@ export const responseSchemas = {
       email: Joi.string().email().description('User email'),
       role: Joi.string().description('User role'),
       ...baseSchemas.timestamps
-    }),
+    }).label('User'),
 
     // Event object schema
     event: Joi.object({
@@ -87,7 +87,7 @@ export const responseSchemas = {
       issuedCount: Joi.number().description('Number of vouchers already issued'),
       isActive: Joi.boolean().description('Whether the event is active'),
       ...baseSchemas.timestamps
-    }),
+    }).label('Event'),
 
     // Voucher object schema
     voucher: Joi.object({
@@ -97,14 +97,64 @@ export const responseSchemas = {
       code: Joi.string().description('Unique voucher code'),
       isUsed: Joi.boolean().description('Whether the voucher has been used'),
       ...baseSchemas.timestamps
-    })
+    }).label('Voucher')
   }
 };
 
 // ============================================================================
-// SHARED SWAGGER RESPONSES
+// SHARED SWAGGER RESPONSES WITH PROPER LABELS
 // ============================================================================
 
+// Shared error response schemas with proper labels
+export const sharedErrorSchemas = {
+  // Standard error response
+  error: Joi.object({
+    success: Joi.boolean().default(false),
+    message: Joi.string().description('Error message')
+  }).label('ErrorResponse'),
+
+  // Unauthorized error
+  unauthorized: Joi.object({
+    success: Joi.boolean().default(false),
+    message: Joi.string().default('Unauthorized - Invalid or missing token')
+  }).label('UnauthorizedResponse'),
+
+  // Bad request error
+  badRequest: Joi.object({
+    success: Joi.boolean().default(false),
+    message: Joi.string().default('Bad Request')
+  }).label('BadRequestResponse'),
+
+  // Not found error
+  notFound: Joi.object({
+    success: Joi.boolean().default(false),
+    message: Joi.string().default('Resource not found')
+  }).label('NotFoundResponse'),
+
+  // Conflict error
+  conflict: Joi.object({
+    success: Joi.boolean().default(false),
+    message: Joi.string().default('Conflict - Resource already exists or in invalid state')
+  }).label('ConflictResponse'),
+
+  // Validation error
+  validation: Joi.object({
+    success: Joi.boolean().default(false),
+    message: Joi.string().default('Validation error'),
+    errors: Joi.array().items(Joi.object({
+      field: Joi.string(),
+      message: Joi.string()
+    })).optional()
+  }).label('ValidationErrorResponse'),
+
+  // Internal server error
+  serverError: Joi.object({
+    success: Joi.boolean().default(false),
+    message: Joi.string().default('Internal Server Error')
+  }).label('ServerErrorResponse')
+};
+
+// Legacy swagger responses - DEPRECATED, use sharedErrorSchemas instead
 export const swaggerResponses = {
   // Common HTTP responses
   common: {
@@ -112,38 +162,31 @@ export const swaggerResponses = {
     201: { description: 'Created successfully' },
     400: {
       description: 'Bad Request',
-      schema: responseSchemas.error
+      schema: sharedErrorSchemas.badRequest
     },
     401: {
       description: 'Unauthorized - Invalid or missing token',
-      schema: responseSchemas.error
+      schema: sharedErrorSchemas.unauthorized
     },
     403: {
       description: 'Forbidden - Insufficient permissions',
-      schema: responseSchemas.error
+      schema: sharedErrorSchemas.error
     },
     404: {
       description: 'Resource not found',
-      schema: responseSchemas.error
+      schema: sharedErrorSchemas.notFound
     },
     409: {
       description: 'Conflict - Resource already exists or in invalid state',
-      schema: responseSchemas.error
+      schema: sharedErrorSchemas.conflict
     },
     422: {
       description: 'Validation error',
-      schema: Joi.object({
-        success: Joi.boolean(),
-        message: Joi.string(),
-        errors: Joi.array().items(Joi.object({
-          field: Joi.string(),
-          message: Joi.string()
-        }))
-      })
+      schema: sharedErrorSchemas.validation
     },
     500: {
       description: 'Internal Server Error',
-      schema: responseSchemas.error
+      schema: sharedErrorSchemas.serverError
     }
   }
 };
@@ -152,7 +195,33 @@ export const swaggerResponses = {
 // HELPER FUNCTIONS
 // ============================================================================
 
-// Create consistent response schema
+// New labeled response schema helpers
+export const labeledResponseSchemas = {
+  // Single item response with custom label
+  single: (itemSchema: Joi.Schema, label: string) => Joi.object({
+    success: Joi.boolean().default(true),
+    message: Joi.string().description('Success message'),
+    data: itemSchema
+  }).label(label),
+  
+  // List response with pagination and custom label
+  list: (itemSchema: Joi.Schema, label: string) => Joi.object({
+    success: Joi.boolean().default(true),
+    message: Joi.string().description('Success message'),
+    data: Joi.object({
+      data: Joi.array().items(itemSchema),
+      pagination: responseSchemas.pagination
+    }).label(`${label}Data`)
+  }).label(label),
+  
+  // Simple success response with custom label
+  success: (message: string, label: string) => Joi.object({
+    success: Joi.boolean().default(true),
+    message: Joi.string().default(message)
+  }).label(label)
+};
+
+// Legacy create response schema - DEPRECATED, use labeledResponseSchemas instead
 export const createResponseSchema = {
   // Single item response
   single: (itemSchema: Joi.Schema) => responseSchemas.success(itemSchema),
