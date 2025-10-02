@@ -38,11 +38,6 @@ export const baseSchemas = {
   objectId: Joi.string().length(24).required().description('MongoDB ObjectId')
 };
 
-export const inputSchemas = {
-  params: {
-    eventId: Joi.object({ eventId: baseSchemas.objectId })
-  }
-};
 
 export const responseSchemas = {
   voucher: Joi.object({

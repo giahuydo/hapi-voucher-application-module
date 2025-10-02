@@ -1,5 +1,4 @@
 import Joi from 'joi';
-import { createInputSchemas } from '../../../../utils/schemas';
 
 export interface CreateEventInput {
   name: string;
@@ -19,13 +18,23 @@ export interface UpdateEventInput {
  * Path parameter schema for event ID
  * Used in: GET /events/{eventId}, PUT /events/{eventId}, DELETE /events/{eventId}
  */
-export const eventIdParamSchema = createInputSchemas.params.id('eventId');
+export const eventIdParamSchema = Joi.object({
+  eventId: Joi.string().length(24).required().description('Event ID')
+});
 
 /**
  * Query parameters for getting all events
  * Used in: GET /events
  */
-export const getAllEventsQuerySchema = createInputSchemas.query.eventSearch;
+export const getAllEventsQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).description('Page number'),
+  limit: Joi.number().integer().min(1).max(100).default(10).description('Items per page'),
+  sortBy: Joi.string().valid('createdAt', 'updatedAt', 'name').default('createdAt').description('Sort field'),
+  sortOrder: Joi.string().valid('asc', 'desc').default('desc').description('Sort order'),
+  search: Joi.string().min(1).description('Search across all fields'),
+  isActive: Joi.boolean().description('Filter by active status'),
+  maxQuantity: Joi.number().description('Filter by max quantity')
+}).unknown(true);
 
 /**
  * Request body schema for creating an event

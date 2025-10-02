@@ -1,45 +1,12 @@
 import Joi from 'joi';
 import { 
   baseSchemas, 
-  responseSchemas, 
-  swaggerResponses, 
-  createResponseSchema, 
-  createInputSchemas 
+  responseSchemas
 } from '../../../../utils/schemas';
 
 // ============================================================================
 // EVENT-SPECIFIC SCHEMAS
 // ============================================================================
-
-// Event-specific input schemas
-export const inputSchemas = {
-  // Path parameters
-  params: {
-    eventId: createInputSchemas.params.id('eventId'),
-  },
-
-  // Query parameters
-  query: {
-    eventSearch: createInputSchemas.query.eventSearch,
-  },
-
-  // Request body schemas
-  body: {
-    createEvent: Joi.object({
-      name: Joi.string().min(1).max(255).required().description('Event name'),
-      description: Joi.string().max(1000).optional().description('Event description'),
-      maxQuantity: Joi.number().integer().min(1).required().description('Maximum number of vouchers'),
-      isActive: Joi.boolean().default(true).description('Whether the event is active')
-    }),
-
-    updateEvent: Joi.object({
-      name: Joi.string().min(1).max(255).optional().description('Event name'),
-      description: Joi.string().max(1000).optional().description('Event description'),
-      maxQuantity: Joi.number().integer().min(1).optional().description('Maximum number of vouchers'),
-      isActive: Joi.boolean().optional().description('Whether the event is active')
-    })
-  }
-};
 
 // Event-specific response schemas
 export const eventResponseSchemas = {

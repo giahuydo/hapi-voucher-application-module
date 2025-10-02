@@ -4,7 +4,7 @@
 
 ```
 utils/
-├── schemas.ts           # 🎯 SHARED SCHEMAS (Used across all modules)
+├── schemas.ts           # 🎯 SHARED RESPONSE SCHEMAS & BASE SCHEMAS
 ├── README.md           # This documentation
 ├── PaginationQuery.ts  # Pagination utilities
 ├── response.ts         # Response utilities
@@ -14,18 +14,18 @@ utils/
 └── generateVoucherCode.ts # Voucher code generation
 ```
 
-## 🎯 Shared Schemas Concept
+## 🎯 Schema Architecture (Updated 2024)
 
-### **Purpose:**
-- **Reusability**: Schemas used across all modules
-- **Consistency**: Ensure consistent format
-- **DRY**: No code duplication
-- **Maintainability**: Easy to update and maintain
+### **New Approach - Pure Joi:**
+- **Input schemas**: Defined directly in each module's `dto/` folder using pure Joi
+- **Response schemas**: Shared in `utils/schemas.ts` for consistency
+- **No helper functions**: Simple, direct Joi schema definitions
+- **Better organization**: Clear separation between input and response schemas
 
-### **Structure:**
+### **Current Structure:**
 
 ```typescript
-// utils/schemas.ts
+// utils/schemas.ts - RESPONSE SCHEMAS ONLY
 export const baseSchemas = {
   objectId: Joi.string().length(24).required(),
   pagination: { page: Joi.number(), limit: Joi.number() },
@@ -33,66 +33,82 @@ export const baseSchemas = {
 };
 
 export const responseSchemas = {
-  success: (dataSchema) => Joi.object({ success: Joi.boolean(), data: dataSchema }),
-  error: Joi.object({ success: Joi.boolean(), message: Joi.string() })
-};
-
-export const swaggerResponses = {
-  common: { 401: {...}, 404: {...}, 409: {...} }
-};
-```
-
-## 🔧 How to Use
-
-### **1. Import shared schemas:**
-```typescript
-// In module schemas (e.g., voucher.schemas.ts)
-import { 
-  baseSchemas, 
-  responseSchemas, 
-  swaggerResponses, 
-  createResponseSchema 
-} from '../../../../utils/schemas';
-```
-
-### **2. Use base schemas:**
-```typescript
-// Create input schema
-export const inputSchemas = {
-  params: {
-    eventId: Joi.object({ eventId: baseSchemas.objectId })
-  },
-  query: {
-    search: Joi.object({
-      ...baseSchemas.pagination,
-      ...baseSchemas.search
-    })
+  objects: {
+    user: Joi.object({...}).label('User'),
+    event: Joi.object({...}).label('Event'),
+    voucher: Joi.object({...}).label('Voucher')
   }
 };
+
+export const sharedErrorSchemas = {
+  UnauthorizedResponse: Joi.object({...}).label('UnauthorizedResponse'),
+  NotFoundResponse: Joi.object({...}).label('NotFoundResponse'),
+  // ... other error responses
+};
 ```
 
-### **3. Use response schemas:**
 ```typescript
-// Create response schema
-export const voucherResponse = Joi.object({
-  id: Joi.string(),
-  eventId: Joi.string(),
-  ...baseSchemas.timestamps,
-  event: responseSchemas.objects.event.optional()
+// src/modules/event/dto/event.input.ts - INPUT SCHEMAS
+export const eventIdParamSchema = Joi.object({
+  eventId: Joi.string().length(24).required().description('Event ID')
+});
+
+export const createEventSchema = Joi.object({
+  name: Joi.string().min(1).max(255).required().description('Event name'),
+  description: Joi.string().max(1000).optional().description('Event description'),
+  maxQuantity: Joi.number().integer().min(1).required().description('Maximum number of vouchers')
 });
 ```
 
-### **4. Use Swagger responses:**
+## 🔧 How to Use (Updated)
+
+### **1. Input Schemas - Define in module's dto/ folder:**
 ```typescript
-// In routes
-plugins: {
-  'hapi-swagger': {
-    responses: {
-      200: createResponseSchema.single(voucherResponse),
-      401: swaggerResponses.common[401],
-      404: swaggerResponses.common[404]
-    }
-  }
+// src/modules/voucher/dto/voucher.input.ts
+import Joi from 'joi';
+
+export const IdVoucherParamsSchema = Joi.object({
+  id: Joi.string().length(24).required().description('Voucher ID')
+});
+
+export const getAllVouchersQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1).description('Page number'),
+  limit: Joi.number().integer().min(1).max(100).default(10).description('Items per page'),
+  sortBy: Joi.string().valid('createdAt', 'updatedAt', 'code').default('createdAt'),
+  sortOrder: Joi.string().valid('asc', 'desc').default('desc'),
+  search: Joi.string().min(1).description('Search across all fields'),
+  eventId: Joi.string().length(24).description('Filter by event ID'),
+  isUsed: Joi.boolean().description('Filter by usage status')
+}).unknown(true);
+```
+
+### **2. Response Schemas - Use shared ones:**
+```typescript
+// src/modules/voucher/api/voucher.routes.ts
+import { sharedErrorSchemas, labeledResponseSchemas } from '../../../../utils/schemas';
+
+// In route responses:
+responses: {
+  200: labeledResponseSchemas.single(responseSchemas.objects.voucher, 'SingleVoucherResponse'),
+  401: sharedErrorSchemas.UnauthorizedResponse,
+  404: sharedErrorSchemas.NotFoundResponse
+}
+```
+
+### **3. Direct Joi with Labels:**
+```typescript
+// In routes - direct Joi objects with labels
+responses: {
+  200: Joi.object({
+    success: Joi.boolean().default(true),
+    message: Joi.string().description('Success message'),
+    data: responseSchemas.objects.voucher
+  }).label('SingleVoucherResponse'),
+  
+  400: Joi.object({
+    success: Joi.boolean().default(false),
+    message: Joi.string().description('Error message')
+  }).label('BadRequestResponse')
 }
 ```
 
@@ -120,17 +136,6 @@ plugins: {
 - `common[409]`: Conflict
 - `common[422]`: Validation error
 - `common[500]`: Internal server error
-
-### **Helper Functions:**
-- `createResponseSchema.single()`: Single item response
-- `createResponseSchema.list()`: List with pagination
-- `createResponseSchema.success()`: Simple success
-- `createResponseSchema.error()`: Error response
-- `generateSearchSchema()`: Dynamic search schema
-- `createInputSchemas.params.id()`: ID parameter
-- `createInputSchemas.query.basicSearch()`: Basic search
-- `createInputSchemas.query.eventSearch()`: Event search
-- `createInputSchemas.query.voucherSearch()`: Voucher search
 
 ## 🎨 Benefits
 

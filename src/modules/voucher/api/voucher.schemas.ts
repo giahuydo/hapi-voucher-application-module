@@ -1,37 +1,12 @@
 import Joi from 'joi';
 import { 
   baseSchemas, 
-  responseSchemas, 
-  swaggerResponses, 
-  createResponseSchema, 
-  generateSearchSchema,
-  createInputSchemas 
+  responseSchemas
 } from '../../../../utils/schemas';
 
 // ============================================================================
 // VOUCHER-SPECIFIC SCHEMAS
 // ============================================================================
-
-// Voucher-specific input schemas
-export const inputSchemas = {
-  // Path parameters
-  params: {
-    voucherId: createInputSchemas.params.id('id'),
-    eventId: createInputSchemas.params.eventId,
-  },
-
-  // Query parameters
-  query: {
-    voucherSearch: createInputSchemas.query.voucherSearch,
-  },
-
-  // Request body schemas
-  body: {
-    issueVoucher: Joi.object({
-      userId: baseSchemas.objectId.description('User ID who will receive the voucher')
-    }),
-  }
-};
 
 // Voucher-specific response schemas
 export const voucherResponseSchemas = {
@@ -113,14 +88,5 @@ export const voucherSwaggerResponses = {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-// Generate voucher search schema
-export function generateVoucherSearchSchema() {
-  return generateSearchSchema(['code', 'issuedTo', 'eventId', 'userId'], {
-    eventId: baseSchemas.optionalObjectId.description('Filter vouchers by event ID'),
-    issuedTo: Joi.string().description('Filter vouchers by user ID'),
-    isUsed: Joi.boolean().description('Filter vouchers by usage status')
-  });
-}
 
 // Legacy schemas removed - use shared schemas from /utils/schemas.ts instead
