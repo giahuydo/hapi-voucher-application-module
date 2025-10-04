@@ -7,17 +7,34 @@ export interface VoucherDTO {
   issuedTo: string;
   code: string;
   isUsed: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
+  // Voucher specific fields
+  name?: string;
+  description?: string;
+  type?: 'percentage' | 'fixed';
+  value?: number;
+  usedCount?: number;
+  usageLimit?: number;
+  isActive?: boolean;
+  // Date fields (consolidated)
+  validFrom?: string;    // When voucher becomes valid
+  validTo?: string;      // When voucher expires
+  // Additional fields for CreateVoucherRequest
+  recipientName?: string;
+  phoneNumber?: string;
+  minimumOrderAmount?: number;
+  maximumDiscount?: number;
+  notes?: string;
   // Event information from populate
-  event?: {
+  event: {
     id: string;
     name: string;
-    description?: string;
+    description: string;
     maxQuantity: number;
     issuedCount: number;
     isActive: boolean;
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt: string;
+    updatedAt: string;
   };
 }

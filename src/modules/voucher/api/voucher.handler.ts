@@ -93,10 +93,42 @@ export const deleteVoucher = async (req: Request, h: ResponseToolkit) => {
  */
 export const issueVoucher = async (req: Request, h: ResponseToolkit) => {
   try {
-    const { eventId } = req.payload as { eventId: string };
+    const payload = req.payload as any;
+    const { 
+      eventId, 
+      issueTo, 
+      name, 
+      description, 
+      type, 
+      value, 
+      usageLimit, 
+      validFrom,
+      validTo,
+      recipientName,
+      phoneNumber,
+      minimumOrderAmount,
+      maximumDiscount,
+      notes
+    } = payload;
     const { userId } = req.auth.credentials as { userId: string };
 
-    const input: IssueVoucherInput = { eventId, userId };
+    const input: IssueVoucherInput = { 
+      eventId, 
+      userId, 
+      issueTo,
+      name,
+      description,
+      type,
+      value,
+      usageLimit,
+      validFrom,
+      validTo,
+      recipientName,
+      phoneNumber,
+      minimumOrderAmount,
+      maximumDiscount,
+      notes
+    };
     const { code } = await VoucherService.issueVoucher(input);
 
     return formatSuccess(h, { code }, 'Voucher issued successfully');

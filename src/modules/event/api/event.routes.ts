@@ -195,7 +195,10 @@ const eventRoutes: ServerRoute[] = [
               description: 'Edit lock requested successfully',
               schema: Joi.object({
                 success: Joi.boolean().default(true),
-                message: Joi.string().default('Edit lock requested successfully')
+                eventId: Joi.string().description('Event ID'),
+                message: Joi.string().default('Edit lock requested successfully'),
+                lockUntil: Joi.date().description('Lock expiration time'),
+                userId: Joi.string().description('User who holds the lock')
               }).label('EditLockRequestedResponse')
             },
             401: {
@@ -271,7 +274,10 @@ const eventRoutes: ServerRoute[] = [
               description: 'Edit lock maintained successfully',
               schema: Joi.object({
                 success: Joi.boolean().default(true),
-                message: Joi.string().default('Edit lock maintained successfully')
+                eventId: Joi.string().description('Event ID'),
+                message: Joi.string().default('Edit lock maintained successfully'),
+                lockUntil: Joi.date().description('Lock expiration time'),
+                lockedBy: Joi.string().description('User who holds the lock')
               }).label('EditLockMaintainedResponse')
             },
             401: {

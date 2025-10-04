@@ -21,7 +21,7 @@ const voucherRoutes: ServerRoute[] = [
       auth: 'jwt',
       tags: ['api', 'vouchers'],
       description: 'Issue a new voucher for a specific event',
-      notes: 'Requires authentication. Event ID passed in request body. Returns 456 if event is full.',
+      notes: 'Requires authentication. Event ID and issueTo email passed in request body. Returns 456 if event is full.',
       validate: {
         payload: issueVoucherPayloadSchema,
         failAction: (request, h, err) => {

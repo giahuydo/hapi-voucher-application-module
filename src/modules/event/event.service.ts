@@ -78,7 +78,8 @@ export const requestEditLock = async (
             code: 200,
             message: 'Already editing',
             eventId,
-            lockUntil: lockedEvent.editLockAt
+            lockUntil: lockedEvent.editLockAt,
+            lockedBy: lockedEvent.editingBy
           };
         }
         
@@ -87,7 +88,8 @@ export const requestEditLock = async (
           code: 409,
           message: 'Event is being edited by another user',
           eventId,
-          lockUntil: lockedEvent.editLockAt
+          lockUntil: lockedEvent.editLockAt,
+          lockedBy: lockedEvent.editingBy
         };
       }
       
@@ -105,7 +107,8 @@ export const requestEditLock = async (
       code: 200,
       message: 'Edit lock acquired',
       eventId,
-      lockUntil: event.editLockAt
+      lockUntil: event.editLockAt,
+      lockedBy: event.editingBy
     };
   } catch (error) {
     await session.abortTransaction();
@@ -160,7 +163,7 @@ export const releaseEditLock = async (
     logger.info(`[ReleaseEditLock] Lock released by user ${userId} on event ${eventId}`);
     return {
       code: 200,
-      message: 'Edit lock released',
+      message: 'Edit lock released successfully',
       eventId,
       lockUntil: null
     };
@@ -225,7 +228,8 @@ export const maintainEditLock = async (
       code: 200,
       message: 'Edit lock extended',
       eventId,
-      lockUntil: event.editLockAt
+      lockUntil: event.editLockAt,
+      lockedBy: event.editingBy
     };
   } catch (error) {
     await session.abortTransaction();

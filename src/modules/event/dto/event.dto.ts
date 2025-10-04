@@ -19,5 +19,6 @@ export interface LockResponseDTO {
   message: string;
   eventId: string;
   lockUntil: Date | null;
+  lockedBy?: string | null; // User who holds/requested the lock
 }
 

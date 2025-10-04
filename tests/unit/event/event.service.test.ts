@@ -42,6 +42,7 @@ describe("EventService", () => {
       expect(result.code).toBe(200);
       expect(result.eventId).toBe(mockEventId);
       expect(result.lockUntil).toBeInstanceOf(Date);
+      expect(result.lockedBy).toBe(mockUserId);
       expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 
@@ -82,6 +83,7 @@ describe("EventService", () => {
       expect(result.message).toBe("Edit lock acquired");
       expect(result.eventId).toBe(mockEventId);
       expect(result.lockUntil).toBeInstanceOf(Date);
+      expect(result.lockedBy).toBe(mockUserId);
 
       // Ensure atomic update was attempted exactly once
       expect(Event.findOneAndUpdate).toHaveBeenCalledTimes(1);
@@ -108,6 +110,7 @@ describe("EventService", () => {
       expect(result.code).toBe(200);
       expect(result.message).toBe("Already editing");
       expect(result.lockUntil).toEqual(futureDate);
+      expect(result.lockedBy).toBe(mockUserId);
     });
 
     it("should reject if another user is editing", async () => {
@@ -132,6 +135,7 @@ describe("EventService", () => {
       expect(result.message).toBe("Event is being edited by another user");
       expect(result.eventId).toBe(mockEventId);
       expect(result.lockUntil).toEqual(futureDate);
+      expect(result.lockedBy).toBe("anotherUser");
     
       // Optional: verify both DB calls happened as intended
       expect(Event.findOneAndUpdate).toHaveBeenCalledTimes(1);
@@ -173,7 +177,7 @@ describe("EventService", () => {
       );
 
       expect(result.code).toBe(200);
-      expect(result.message).toBe("Edit lock released");
+      expect(result.message).toBe("Edit lock released successfully");
       expect(result.eventId).toBe(mockEventId);
       expect(result.lockUntil).toBeNull();
       expect(Event.findOneAndUpdate).toHaveBeenCalled();
@@ -231,6 +235,7 @@ describe("EventService", () => {
       expect(result.message).toBe("Edit lock extended");
       expect(result.eventId).toBe(mockEventId);
       expect(result.lockUntil).toBeInstanceOf(Date);
+      expect(result.lockedBy).toBe(mockUserId);
       expect(Event.findOneAndUpdate).toHaveBeenCalled();
     });
 

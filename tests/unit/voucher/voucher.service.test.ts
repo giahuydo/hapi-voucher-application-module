@@ -8,10 +8,15 @@ import { generateVoucherCode } from "../../../utils/generateVoucherCode";
 import { deleteVoucher } from "../../../src/modules/voucher/voucher.service";
 import { NotFoundError } from "../../../utils/errorHandler";
 import { sendVoucherNotificationEmail } from "../../../src/modules/voucher/voucher.service";
+import { transformVoucher } from "../../../src/modules/voucher/voucher.transformer";
 import Queue from "bull";
 
 // Mock models and modules
-jest.mock("../../../src/modules/event/event.model");
+jest.mock("../../../src/modules/event/event.model", () => ({
+  Event: {
+    findById: jest.fn(),
+  },
+}));
 jest.mock("../../../src/modules/voucher/voucher.model");
 jest.mock("../../../src/modules/user/user.service", () => ({
   getUserById: jest.fn(),
@@ -85,14 +90,98 @@ describe("issueVoucher", () => {
     const result = await VoucherService.issueVoucher({
       eventId: validEventId,
       userId: "u1",
+      issueTo: "test@example.com",
     });
 
     expect(result.code).toBe("VOUCHER123");
     expect(session.commitTransaction).toHaveBeenCalled();
-    expect(emailQueue.add).toHaveBeenCalledWith("send-voucher-email", {
+    expect(emailQueue.add).toHaveBeenCalledWith("send-voucher-email", expect.objectContaining({
       to: "test@example.com",
       code: "VOUCHER123",
-    });
+      voucherCode: "VOUCHER123",
+      name: expect.any(String),
+      eventName: expect.any(String),
+      eventDescription: expect.any(String)
+    }));
+  });
+
+  it("should issue voucher with all new fields", async () => {
+    const mockEvent = {
+      _id: validEventId,
+      maxQuantity: 2,
+      issuedCount: 1,
+      save: jest.fn(),
+    };
+
+    mockFindByIdWithSession(Event, mockEvent);
+    (Voucher.create as jest.Mock).mockResolvedValue([{ code: "VOUCHER123" }]);
+
+    const voucherInput = {
+      eventId: validEventId,
+      userId: "u1",
+      issueTo: "test@example.com",
+      name: "Summer Sale Voucher",
+      description: "20% off for summer event",
+      type: "percentage" as const,
+      value: 20,
+      usageLimit: 5,
+      validFrom: "2024-01-01T00:00:00.000Z",
+      validTo: "2024-12-31T23:59:59.000Z",
+      recipientName: "John Doe",
+      phoneNumber: "+1234567890",
+      minimumOrderAmount: 100,
+      maximumDiscount: 50,
+      notes: "Special voucher for VIP customers"
+    };
+
+    const result = await VoucherService.issueVoucher(voucherInput);
+
+    expect(result.code).toBe("VOUCHER123");
+    expect(session.commitTransaction).toHaveBeenCalled();
+    
+    // Verify Voucher.create was called with all the new fields
+    expect(Voucher.create).toHaveBeenCalledWith(
+      [expect.objectContaining({
+        eventId: expect.any(Object),
+        code: "VOUCHER123",
+        issuedTo: "u1",
+        isUsed: false,
+        name: "Summer Sale Voucher",
+        description: "20% off for summer event",
+        type: "percentage",
+        value: 20,
+        usedCount: 0,
+        usageLimit: 5,
+        isActive: true,
+        validFrom: new Date("2024-01-01T00:00:00.000Z"),
+        validTo: new Date("2024-12-31T23:59:59.000Z"),
+        recipientName: "John Doe",
+        phoneNumber: "+1234567890",
+        minimumOrderAmount: 100,
+        maximumDiscount: 50,
+        notes: "Special voucher for VIP customers"
+      })],
+      { session }
+    );
+
+    expect(emailQueue.add).toHaveBeenCalledWith("send-voucher-email", expect.objectContaining({
+      to: "test@example.com",
+      code: "VOUCHER123",
+      voucherCode: "VOUCHER123",
+      name: expect.any(String),
+      eventName: expect.any(String),
+      eventDescription: expect.any(String),
+      recipientName: "John Doe",
+      phoneNumber: "+1234567890",
+      type: "percentage",
+      value: 20,
+      usageLimit: 5,
+      validFrom: new Date("2024-01-01T00:00:00.000Z"),
+      validTo: new Date("2024-12-31T23:59:59.000Z"),
+      minimumOrderAmount: 100,
+      maximumDiscount: 50,
+      notes: "Special voucher for VIP customers"
+    }));
   });
 
   it("should throw 456 if event is out of vouchers", async () => {
@@ -106,7 +195,7 @@ describe("issueVoucher", () => {
     mockFindByIdWithSession(Event, mockEvent);
 
     await expect(
-      VoucherService.issueVoucher({ eventId: validEventId, userId: "u1" })
+      VoucherService.issueVoucher({ eventId: validEventId, userId: "u1", issueTo: "test@example.com" })
     ).rejects.toThrow(expect.objectContaining({ statusCode: 456 }));
 
     expect(session.abortTransaction).toHaveBeenCalled();
@@ -130,6 +219,7 @@ describe("issueVoucher", () => {
     const result = await VoucherService.issueVoucher({
       eventId: validEventId,
       userId: "u1",
+      issueTo: "test@example.com",
     });
 
     expect(result.code).toBe("RETRY456");
@@ -160,9 +250,9 @@ describe("issueVoucher", () => {
     });
 
     const requests = [
-      VoucherService.issueVoucher({ eventId: validEventId, userId: "u1" }),
-      VoucherService.issueVoucher({ eventId: validEventId, userId: "u2" }),
-      VoucherService.issueVoucher({ eventId: validEventId, userId: "u3" }),
+      VoucherService.issueVoucher({ eventId: validEventId, userId: "u1", issueTo: "test1@example.com" }),
+      VoucherService.issueVoucher({ eventId: validEventId, userId: "u2", issueTo: "test2@example.com" }),
+      VoucherService.issueVoucher({ eventId: validEventId, userId: "u3", issueTo: "test3@example.com" }),
     ];
 
     const results = await Promise.allSettled(requests);
@@ -176,6 +266,296 @@ describe("issueVoucher", () => {
     rejected.forEach((r) => {
       // @ts-ignore
       expect(r.reason.statusCode).toBe(456);
+    });
+  });
+
+  it("should handle optional fields correctly", async () => {
+    const mockEvent = {
+      _id: validEventId,
+      maxQuantity: 2,
+      issuedCount: 1,
+      save: jest.fn(),
+    };
+
+    mockFindByIdWithSession(Event, mockEvent);
+    (Voucher.create as jest.Mock).mockResolvedValue([{ code: "VOUCHER123" }]);
+
+    // Test with minimal required fields only
+    const minimalInput = {
+      eventId: validEventId,
+      userId: "u1",
+      issueTo: "test@example.com",
+    };
+
+    const result = await VoucherService.issueVoucher(minimalInput);
+
+    expect(result.code).toBe("VOUCHER123");
+    expect(session.commitTransaction).toHaveBeenCalled();
+    
+    // Verify Voucher.create was called with default values for optional fields
+    expect(Voucher.create).toHaveBeenCalledWith(
+      [expect.objectContaining({
+        eventId: expect.any(Object),
+        code: "VOUCHER123",
+        issuedTo: "u1",
+        isUsed: false,
+        name: undefined,
+        description: undefined,
+        type: "fixed", // Default type
+        value: undefined,
+        usedCount: 0,
+        usageLimit: undefined,
+        isActive: true,
+        validFrom: undefined,
+        validTo: undefined,
+        recipientName: undefined,
+        phoneNumber: undefined,
+        minimumOrderAmount: undefined,
+        maximumDiscount: undefined,
+        notes: undefined
+      })],
+      { session }
+    );
+  });
+
+  it("should handle date fields correctly", async () => {
+    const mockEvent = {
+      _id: validEventId,
+      maxQuantity: 2,
+      issuedCount: 1,
+      save: jest.fn(),
+    };
+
+    mockFindByIdWithSession(Event, mockEvent);
+    (Voucher.create as jest.Mock).mockResolvedValue([{ code: "VOUCHER123" }]);
+
+    const inputWithDates = {
+      eventId: validEventId,
+      userId: "u1",
+      issueTo: "test@example.com",
+      validFrom: "2024-01-01T00:00:00.000Z",
+      validTo: "2024-12-31T23:59:59.000Z",
+    };
+
+    const result = await VoucherService.issueVoucher(inputWithDates);
+
+    expect(result.code).toBe("VOUCHER123");
+    
+    // Verify dates are properly converted to Date objects
+    expect(Voucher.create).toHaveBeenCalledWith(
+      [expect.objectContaining({
+        validFrom: new Date("2024-01-01T00:00:00.000Z"),
+        validTo: new Date("2024-12-31T23:59:59.000Z"),
+      })],
+      { session }
+    );
+  });
+
+  it("should handle percentage and fixed voucher types", async () => {
+    const mockEvent = {
+      _id: validEventId,
+      maxQuantity: 2,
+      issuedCount: 1,
+      save: jest.fn(),
+    };
+
+    mockFindByIdWithSession(Event, mockEvent);
+    (Voucher.create as jest.Mock).mockResolvedValue([{ code: "VOUCHER123" }]);
+
+    // Test percentage type
+    const percentageInput = {
+      eventId: validEventId,
+      userId: "u1",
+      issueTo: "test@example.com",
+      type: "percentage" as const,
+      value: 20,
+    };
+
+    await VoucherService.issueVoucher(percentageInput);
+
+    expect(Voucher.create).toHaveBeenCalledWith(
+      [expect.objectContaining({
+        type: "percentage",
+        value: 20,
+      })],
+      { session }
+    );
+
+    // Reset mock
+    jest.clearAllMocks();
+    (Voucher.create as jest.Mock).mockResolvedValue([{ code: "VOUCHER456" }]);
+
+    // Test fixed type
+    const fixedInput = {
+      eventId: validEventId,
+      userId: "u1",
+      issueTo: "test@example.com",
+      type: "fixed" as const,
+      value: 50,
+    };
+
+    await VoucherService.issueVoucher(fixedInput);
+
+    expect(Voucher.create).toHaveBeenCalledWith(
+      [expect.objectContaining({
+        type: "fixed",
+        value: 50,
+      })],
+      { session }
+    );
+  });
+});
+
+describe("transformVoucher", () => {
+  it("should transform voucher with all new fields", () => {
+    const mockVoucher = {
+      _id: new mongoose.Types.ObjectId(),
+      eventId: new mongoose.Types.ObjectId(),
+      code: "VOUCHER123",
+      issuedTo: "user123",
+      isUsed: false,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-01T00:00:00.000Z"),
+      name: "Summer Sale Voucher",
+      description: "20% off for summer event",
+      type: "percentage" as const,
+      value: 20,
+      usedCount: 0,
+      usageLimit: 5,
+      isActive: true,
+      validFrom: new Date("2024-01-01T00:00:00.000Z"),
+      validTo: new Date("2024-12-31T23:59:59.000Z"),
+      recipientName: "John Doe",
+      phoneNumber: "+1234567890",
+      minimumOrderAmount: 100,
+      maximumDiscount: 50,
+      notes: "Special voucher for VIP customers"
+    };
+
+    const result = transformVoucher(mockVoucher);
+
+    expect(result).toEqual({
+      id: mockVoucher._id.toString(),
+      eventId: mockVoucher.eventId.toString(),
+      code: "VOUCHER123",
+      issuedTo: "user123",
+      isUsed: false,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+      name: "Summer Sale Voucher",
+      description: "20% off for summer event",
+      type: "percentage",
+      value: 20,
+      usedCount: 0,
+      usageLimit: 5,
+      isActive: true,
+      validFrom: "2024-01-01T00:00:00.000Z",
+      validTo: "2024-12-31T23:59:59.000Z",
+      recipientName: "John Doe",
+      phoneNumber: "+1234567890",
+      minimumOrderAmount: 100,
+      maximumDiscount: 50,
+      notes: "Special voucher for VIP customers",
+      event: {
+        id: '',
+        name: '',
+        description: '',
+        maxQuantity: 0,
+        issuedCount: 0,
+        isActive: false,
+        createdAt: '1970-01-01T00:00:00.000Z',
+        updatedAt: '1970-01-01T00:00:00.000Z',
+      }
+    });
+  });
+
+  it("should transform voucher with populated event", () => {
+    const mockPopulatedEvent = {
+      _id: new mongoose.Types.ObjectId(),
+      name: "Summer Festival",
+      description: "Amazing summer event",
+      maxQuantity: 100,
+      issuedCount: 25,
+      isActive: true,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-01T00:00:00.000Z"),
+    };
+
+    const mockVoucher = {
+      _id: new mongoose.Types.ObjectId(),
+      eventId: mockPopulatedEvent,
+      code: "VOUCHER123",
+      issuedTo: "user123",
+      isUsed: false,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-01T00:00:00.000Z"),
+      name: "Summer Sale Voucher",
+      type: "fixed" as const,
+      value: 50,
+      validFrom: new Date("2024-01-01T00:00:00.000Z"),
+      validTo: new Date("2024-12-31T23:59:59.000Z"),
+    };
+
+    const result = transformVoucher(mockVoucher);
+
+    expect(result.event).toEqual({
+      id: mockPopulatedEvent._id.toString(),
+      name: "Summer Festival",
+      description: "Amazing summer event",
+      maxQuantity: 100,
+      issuedCount: 25,
+      isActive: true,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+  });
+
+  it("should handle undefined optional fields", () => {
+    const mockVoucher = {
+      _id: new mongoose.Types.ObjectId(),
+      eventId: new mongoose.Types.ObjectId(),
+      code: "VOUCHER123",
+      issuedTo: "user123",
+      isUsed: false,
+      createdAt: new Date("2024-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2024-01-01T00:00:00.000Z"),
+      // All optional fields are undefined
+    };
+
+    const result = transformVoucher(mockVoucher);
+
+    expect(result).toEqual({
+      id: mockVoucher._id.toString(),
+      eventId: mockVoucher.eventId.toString(),
+      code: "VOUCHER123",
+      issuedTo: "user123",
+      isUsed: false,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+      name: undefined,
+      description: undefined,
+      type: undefined,
+      value: undefined,
+      usedCount: undefined,
+      usageLimit: undefined,
+      isActive: undefined,
+      validFrom: undefined,
+      validTo: undefined,
+      recipientName: undefined,
+      phoneNumber: undefined,
+      minimumOrderAmount: undefined,
+      maximumDiscount: undefined,
+      notes: undefined,
+      event: {
+        id: '',
+        name: '',
+        description: '',
+        maxQuantity: 0,
+        issuedCount: 0,
+        isActive: false,
+        createdAt: '1970-01-01T00:00:00.000Z',
+        updatedAt: '1970-01-01T00:00:00.000Z',
+      }
     });
   });
 });
@@ -268,35 +648,99 @@ describe("sendVoucherNotificationEmail", () => {
     jest.clearAllMocks();
   });
 
-  it("should queue email job when user has email", async () => {
-    const userId = "user123";
+  it("should queue email job when email is provided", async () => {
+    const email = "test@example.com";
     const code = "TEST123";
+    const eventId = "event123";
+    const userId = "user123";
+
+    // Mock Event.findById
+    (Event.findById as jest.Mock).mockResolvedValue({
+      name: "Test Event",
+      description: "Test Description"
+    });
 
     (UserService.getUserById as jest.Mock).mockResolvedValue({
-      email: "test@example.com",
+      email: "user@example.com",
+      name: "Test User"
     });
+
     (emailQueue.add as jest.Mock).mockResolvedValue(true);
 
-    await sendVoucherNotificationEmail(userId, code);
+    await sendVoucherNotificationEmail(email, code, eventId, userId);
 
-    expect(UserService.getUserById).toHaveBeenCalledWith(userId);
-    expect(emailQueue.add).toHaveBeenCalledWith("send-voucher-email", {
-      to: "test@example.com",
+    expect(emailQueue.add).toHaveBeenCalledWith("send-voucher-email", expect.objectContaining({
+      to: email,
       code: code,
-    });
+      voucherCode: code,
+      name: "Test User",
+      eventName: "Test Event",
+      eventDescription: "Test Description"
+    }));
   });
 
-  it("should not queue email when user has no email", async () => {
-    const userId = "user123";
+  it("should queue email job with voucher details when provided", async () => {
+    const email = "test@example.com";
     const code = "TEST123";
+    const eventId = "event123";
+    const userId = "user123";
 
-    (UserService.getUserById as jest.Mock).mockResolvedValue({
-      email: null,
+    const voucherDetails = {
+      recipientName: "John Doe",
+      phoneNumber: "+1234567890",
+      type: "percentage" as const,
+      value: 20,
+      usageLimit: 5,
+      validFrom: new Date("2024-01-01T00:00:00.000Z"),
+      validTo: new Date("2024-12-31T23:59:59.000Z"),
+      minimumOrderAmount: 100,
+      maximumDiscount: 50,
+      notes: "Special voucher for VIP customers"
+    };
+
+    // Mock Event.findById
+    (Event.findById as jest.Mock).mockResolvedValue({
+      name: "Test Event",
+      description: "Test Description"
     });
 
-    await sendVoucherNotificationEmail(userId, code);
+    (UserService.getUserById as jest.Mock).mockResolvedValue({
+      email: "user@example.com",
+      name: "Test User"
+    });
 
-    expect(UserService.getUserById).toHaveBeenCalledWith(userId);
+    (emailQueue.add as jest.Mock).mockResolvedValue(true);
+
+    await sendVoucherNotificationEmail(email, code, eventId, userId, voucherDetails);
+
+    expect(emailQueue.add).toHaveBeenCalledWith("send-voucher-email", expect.objectContaining({
+      to: email,
+      code: code,
+      voucherCode: code,
+      name: "Test User",
+      eventName: "Test Event",
+      eventDescription: "Test Description",
+      recipientName: "John Doe",
+      phoneNumber: "+1234567890",
+      type: "percentage",
+      value: 20,
+      usageLimit: 5,
+      validFrom: new Date("2024-01-01T00:00:00.000Z"),
+      validTo: new Date("2024-12-31T23:59:59.000Z"),
+      minimumOrderAmount: 100,
+      maximumDiscount: 50,
+      notes: "Special voucher for VIP customers"
+    }));
+  });
+
+  it("should not queue email when no email is provided", async () => {
+    const email = "";
+    const code = "TEST123";
+    const eventId = "event123";
+    const userId = "user123";
+
+    await sendVoucherNotificationEmail(email, code, eventId, userId);
+
     expect(emailQueue.add).not.toHaveBeenCalled();
   });
 

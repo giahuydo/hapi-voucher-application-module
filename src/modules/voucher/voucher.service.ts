@@ -25,15 +25,33 @@ export const issueVoucher = async (
     session.startTransaction();
     logger.info('[issueVoucher] 🔒 Transaction started');
 
+    // Prepare voucher data
+    const voucherData = {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      value: input.value,
+      usageLimit: input.usageLimit,
+      // Date fields (consolidated)
+      validFrom: input.validFrom ? new Date(input.validFrom) : undefined,
+      validTo: input.validTo ? new Date(input.validTo) : undefined,
+      // Additional fields for CreateVoucherRequest
+      recipientName: input.recipientName,
+      phoneNumber: input.phoneNumber,
+      minimumOrderAmount: input.minimumOrderAmount,
+      maximumDiscount: input.maximumDiscount,
+      notes: input.notes,
+    };
+
     // issueVoucherCore already creates the voucher and returns the code
-    const code = await issueVoucherCore(input.eventId, input.userId, session);
+    const code = await issueVoucherCore(input.eventId, input.userId, session, voucherData);
     
     await session.commitTransaction();
     committed = true;
     logger.info('[issueVoucher] ✅ Transaction committed');
 
     // Send voucher notification email directly via email queue
-    await sendVoucherNotificationEmail(input.userId, code);
+    await sendVoucherNotificationEmail(input.issueTo, code, input.eventId, input.userId, voucherData);
 
     return { code };
   } catch (err: any) {
@@ -60,27 +78,95 @@ export const issueVoucher = async (
   }
 };
 
-export const sendVoucherNotificationEmail = async (userId: string, code: string) => {
-  logger.info(`[sendVoucherNotificationEmail] 📧 Sending voucher notification email for user ${userId}`);
+export const sendVoucherNotificationEmail = async (email: string, code: string, eventId: string, userId: string, voucherDetails?: any) => {
+  logger.info(`[sendVoucherNotificationEmail] 📧 Sending voucher notification email to ${email}`);
   
   try {
-    const user = await UserService.getUserById(userId);
-    if (user?.email) {
-      logger.info(`[sendVoucherNotificationEmail] 📧 Queuing email for ${user.email} with code ${code}`);
+    if (email) {
+      logger.info(`[sendVoucherNotificationEmail] 📧 Queuing email for ${email} with code ${code}`);
+      
+      // Get full voucher data for email template
+      const voucherData = await getVoucherDataForEmail(eventId, userId, code);
+      
+      // Override the 'to' field with the issueTo email
+      voucherData.to = email;
+      
+      // Override with actual voucher details if provided
+      if (voucherDetails) {
+        voucherData.recipientName = voucherDetails.recipientName;
+        voucherData.phoneNumber = voucherDetails.phoneNumber;
+        voucherData.type = voucherDetails.type;
+        voucherData.value = voucherDetails.value;
+        voucherData.usageLimit = voucherDetails.usageLimit;
+        voucherData.minimumOrderAmount = voucherDetails.minimumOrderAmount;
+        voucherData.maximumDiscount = voucherDetails.maximumDiscount;
+        voucherData.validFrom = voucherDetails.validFrom;
+        voucherData.validTo = voucherDetails.validTo;
+        voucherData.notes = voucherDetails.notes;
+      }
       
       // Add email job to email queue
-      await emailQueue.add('send-voucher-email', {
-        to: user.email,
-        code: code
-      });
+      await emailQueue.add('send-voucher-email', voucherData);
       
-      logger.info(`[sendVoucherNotificationEmail] ✅ Email job queued successfully for ${user.email}`);
+      logger.info(`[sendVoucherNotificationEmail] ✅ Email job queued successfully for ${email}`);
     } else {
-      logger.warn(`[sendVoucherNotificationEmail] ⚠️ User ${userId} has no email - no email sent`);
+      logger.warn(`[sendVoucherNotificationEmail] ⚠️ No email provided - no email sent`);
     }
   } catch (error) {
     // Don't fail the main operation if email queuing fails
-    logger.error(`[sendVoucherNotificationEmail] ❌ Failed to queue email for user ${userId}:`, error);
+    logger.error(`[sendVoucherNotificationEmail] ❌ Failed to queue email for ${email}:`, error);
+  }
+};
+
+/**
+ * Get full voucher data for email template
+ */
+const getVoucherDataForEmail = async (eventId: string, userId: string, code: string) => {
+  try {
+    // Get event information
+    const event = await Event.findById(eventId);
+    if (!event) {
+      throw new NotFoundError("Event not found");
+    }
+
+    // Get user information
+    const user = await UserService.getUserById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    return {
+      to: user.email || '', // This will be overridden by issueTo
+      code: code,
+      email: user.email || '',
+      name: user.name || user.email || 'User',
+      voucherCode: code,
+      eventName: event.name,
+      eventDescription: event.description || 'No description available',
+      // Additional voucher fields for email template
+      recipientName: user.name,
+      phoneNumber: (user as any).phoneNumber, // Cast to any since phoneNumber might not be in UserDTO
+      type: 'fixed', // Default type, will be overridden by actual voucher data
+      value: 0, // Default value, will be overridden by actual voucher data
+      usageLimit: 1, // Default usage limit, will be overridden by actual voucher data
+      minimumOrderAmount: undefined, // Will be overridden by actual voucher data
+      maximumDiscount: undefined, // Will be overridden by actual voucher data
+      validFrom: undefined, // Will be overridden by actual voucher data
+      validTo: undefined, // Will be overridden by actual voucher data
+      notes: undefined // Will be overridden by actual voucher data
+    };
+  } catch (error) {
+    logger.error('[getVoucherDataForEmail] ❌ Error getting voucher data:', error);
+    // Return minimal data if there's an error
+    return {
+      to: '',
+      code: code,
+      email: '',
+      name: 'User',
+      voucherCode: code,
+      eventName: 'Event',
+      eventDescription: 'No description available'
+    };
   }
 };
 

@@ -17,7 +17,7 @@ const AgendaPlugin: Plugin<undefined> = {
 
     // Register jobs
     // await unlockVoucherLocksJob(agenda);
-    await databaseHealthCheckJob(agenda);
+    // await databaseHealthCheckJob(agenda);
     console.log("✅ Jobs registered:", Object.keys(agenda._definitions));
 
     // Store in server.app

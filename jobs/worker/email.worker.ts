@@ -7,23 +7,19 @@ import {logger} from '../../utils/logger';
 
 dotenv.config();
 
-interface EmailJobData {
-  to: string;
-  code: string;
-}
-
 // Explicitly register the process handler for 'send-voucher-email' job type
 const registerProcessHandlers = () => {
   logger.info('🔧 Registering process handlers for email queue...');
   
   // Register specific handler for 'send-voucher-email' job type
   emailQueue.process('send-voucher-email', async (job) => {
-    const { to, code } = job.data as EmailJobData;
+    const voucherData = job.data;
+    const { to, code, name, eventName } = voucherData;
     
     try {
-      logger.info(`Processing send-voucher-email job ${job.id} for ${to} (attempt ${job.attemptsMade + 1})`);
+      logger.info(`Processing send-voucher-email job ${job.id} for ${to} (${name}) - Event: ${eventName} (attempt ${job.attemptsMade + 1})`);
       
-      const result = await sendEmail({ to, code });
+      const result = await sendEmail(voucherData);
       
       if (result.success) {
         logger.info(`Send-voucher-email job ${job.id} completed successfully. Message ID: ${result.messageId}`);

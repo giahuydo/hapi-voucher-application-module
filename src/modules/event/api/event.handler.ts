@@ -138,7 +138,8 @@ export const requestEditLock = async (req: Request, h: ResponseToolkit) => {
       success: result.code === 200,
       eventId: result.eventId,
       message: result.message,
-      lockUntil: result.lockUntil
+      lockUntil: result.lockUntil,
+      lockedBy: result.lockedBy
     }).code(result.code);
   } catch (err: any) {
     const errorPayload = handleError(err);
@@ -206,7 +207,8 @@ export const maintainEditLock = async (req: Request, h: ResponseToolkit) => {
       success: result.code === 200,
       eventId: result.eventId,
       message: result.message,
-      lockUntil: result.lockUntil
+      lockUntil: result.lockUntil,
+      lockedBy: result.lockedBy
     }).code(result.code);
   } catch (err: any) {
     return h.response({ success: false, message: err.message }).code(500);
