@@ -47,93 +47,49 @@ export interface FieldType {
   }
 
   /**
-   * Parse dynamic search parameters from query object
-   * Extracts parameters like search.field into searchFields object
+   * Basic pagination parser - just extracts pagination params
+   * Each module handles its own filtering logic
    */
-  export function parseSearchParameters(
-    query: Record<string, any>, 
-    searchableFields: string[] = [],
-    fieldTypes: Record<string, FieldType> = {}
-  ): {
-    paginationQuery: PaginationQuery;
-    searchFields: Record<string, any>;
+  export function parsePagination(query: Record<string, any>): {
+    page: number;
+    limit: number;
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
+    search?: string;
   } {
-    const paginationQuery: PaginationQuery = {
-      page: query.page ? Number(query.page) : undefined,
-      limit: query.limit ? Number(query.limit) : undefined,
-      sortBy: query.sortBy as string | undefined,
-      sortOrder: query.sortOrder as 'asc' | 'desc' | undefined,
-      search: query.search as string | undefined,
-      filters: {},
+    return {
+      page: Number(query.page) || 1,
+      limit: Number(query.limit) || 10,
+      sortBy: query.sortBy || 'createdAt',
+      sortOrder: (query.sortOrder as 'asc' | 'desc') || 'desc',
+      search: query.search as string | undefined
     };
+  }
 
-    const searchFields: Record<string, any> = {};
-
-    // Extract search.field parameters for allowed fields only
+  /**
+   * Helper to extract filters from query - modules decide what to use
+   */
+  export function extractFilters(query: Record<string, any>, allowedFields?: string[]): Record<string, any> {
+    const filters: Record<string, any> = {};
+    
     Object.keys(query).forEach(key => {
-      if (key.startsWith('search.')) {
-        const field = key.slice(7); // Remove 'search.'
-        const value = query[key];
-        
-        if (value !== undefined && value !== null && value !== '') {
-          // Handle numeric operators (e.g., search.issuedCount.gte)
-          if (field.includes('.')) {
-            const [baseField, operator] = field.split('.');
-            if (searchableFields.includes(baseField)) {
-              const fieldType = fieldTypes[baseField];
-              if (fieldType?.type === 'number' && fieldType.operators?.includes(operator)) {
-                if (!searchFields[baseField]) {
-                  searchFields[baseField] = {};
-                }
-                searchFields[baseField][`$${operator}`] = Number(value);
-              } else {
-                logger.warn(`Operator '${operator}' not allowed for field '${baseField}'`);
-              }
-            } else {
-              logger.warn(`Search field '${baseField}' is not allowed. Allowed fields: ${searchableFields.join(', ')}`);
-            }
-          } else {
-            // Regular field search
-            if (searchableFields.includes(field)) {
-              searchFields[field] = value;
-            } else {
-              logger.warn(`Search field '${field}' is not allowed. Allowed fields: ${searchableFields.join(', ')}`);
-            }
-          }
-        }
+      // Skip pagination params
+      if (['page', 'limit', 'sortBy', 'sortOrder', 'search'].includes(key)) {
+        return;
+      }
+
+      // If allowedFields specified, only use those
+      if (allowedFields && !allowedFields.includes(key)) {
+        return;
+      }
+
+      const value = query[key];
+      if (value !== undefined && value !== null && value !== '') {
+        filters[key] = value;
       }
     });
 
-    // Parse JSON searchFields if provided
-    if (query.searchFields && typeof query.searchFields === 'string') {
-      try {
-        const jsonSearchFields = JSON.parse(query.searchFields);
-        // Only allow search on searchable fields from JSON
-        Object.keys(jsonSearchFields).forEach(field => {
-          if (searchableFields.includes(field)) {
-            searchFields[field] = jsonSearchFields[field];
-          } else {
-            logger.warn(`Search field '${field}' from JSON is not allowed. Allowed fields: ${searchableFields.join(', ')}`);
-          }
-        });
-      } catch (error) {
-        logger.warn('Invalid JSON in searchFields parameter');
-      }
-    }
-
-    // Extract other filter parameters
-    const filterKeys = ['eventId', 'issuedTo', 'isUsed', 'userId', 'code'];
-    filterKeys.forEach(key => {
-      if (query[key] !== undefined) {
-        let value = query[key];
-        if (key === 'isUsed') {
-          value = value === 'true';
-        }
-        paginationQuery.filters![key] = value;
-      }
-    });
-
-    return { paginationQuery, searchFields };
+    return filters;
   }
 
   interface PaginateOptions<T> {

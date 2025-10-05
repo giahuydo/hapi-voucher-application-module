@@ -3,40 +3,34 @@ import * as VoucherService from '../voucher.service';
 import { IssueVoucherInput } from '../dto/voucher.input';
 import { formatSuccess, formatError } from '../../../../utils/responseFormatter';
 import { logger } from '../../../../utils/logger';
-import { parseSearchParameters } from '../../../../utils/PaginationQuery';
+import { parsePagination, extractFilters } from '../../../../utils/PaginationQuery';
 
 /**
  * Get all vouchers
  */
 export const getAllVouchers = async (req: Request, h: ResponseToolkit) => {
   try {
-    // Define searchable fields and their types for vouchers
-    const searchableFields = [
-      'code', 'issuedTo', 'eventId', 'userId', 'type', 'isActive', 
+    // Parse basic pagination
+    const pagination = parsePagination(req.query);
+    
+    // Extract filters - voucher module decides what fields to allow
+    const allowedFields = [
+      'eventId', 'issuedTo', 'userId', 'code', 'type', 'isActive', 
       'isUsed', 'status', 'validFrom', 'validTo', 'createdFrom', 'createdTo'
     ];
-    const fieldTypes = {
-      code: { type: 'string' as const },
-      issuedTo: { type: 'objectId' as const },
-      eventId: { type: 'objectId' as const },
-      userId: { type: 'objectId' as const },
-      type: { type: 'string' as const },
-      isActive: { type: 'boolean' as const },
-      isUsed: { type: 'boolean' as const },
-      status: { type: 'string' as const },
-      validFrom: { type: 'string' as const },
-      validTo: { type: 'string' as const },
-      createdFrom: { type: 'string' as const },
-      createdTo: { type: 'string' as const }
-    };
+    const filters = extractFilters(req.query, allowedFields);
     
-    // Parse dynamic search parameters with allowed fields and types
-    const { paginationQuery, searchFields } = parseSearchParameters(req.query, searchableFields, fieldTypes);
+    // Convert string booleans
+    if (filters.isUsed !== undefined) {
+      filters.isUsed = filters.isUsed === 'true';
+    }
+    if (filters.isActive !== undefined) {
+      filters.isActive = filters.isActive === 'true';
+    }
     
-    // Merge searchFields into paginationQuery
     const query = {
-      ...paginationQuery,
-      searchFields
+      ...pagination,
+      searchFields: filters
     };
     
     const result = await VoucherService.getAllVouchers(query);

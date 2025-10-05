@@ -6,7 +6,7 @@ import { LockResponseDTO } from '../dto/event.dto';
 import { NotFoundError, handleError } from '../../../../utils/errorHandler';
 import { logger } from '../../../../utils/logger';
 import { formatSuccess, formatError } from '../../../../utils/responseFormatter';
-import { parseSearchParameters } from '../../../../utils/PaginationQuery';
+import { parsePagination, extractFilters } from '../../../../utils/PaginationQuery';
 
 
 /**
@@ -14,21 +14,29 @@ import { parseSearchParameters } from '../../../../utils/PaginationQuery';
  */
 export const getAllEvents = async (req: Request, h: ResponseToolkit) => {
   try {
-    // Define searchable fields and their types for events
-    const searchableFields = ['name', 'issuedCount', 'maxQuantity'];
-    const fieldTypes = {
-      name: { type: 'string' as const },
-      issuedCount: { type: 'number' as const, operators: ['gte', 'lte', 'gt', 'lt'] },
-      maxQuantity: { type: 'number' as const, operators: ['gte', 'lte', 'gt', 'lt'] }
-    };
+    // Parse basic pagination
+    const pagination = parsePagination(req.query);
     
-    // Parse dynamic search parameters with allowed fields and types
-    const { paginationQuery, searchFields } = parseSearchParameters(req.query, searchableFields, fieldTypes);
+    // Extract filters - event module decides what fields to allow
+    const allowedFields = ['name', 'isActive', 'maxQuantity', 'issuedCount'];
+    const filters = extractFilters(req.query, allowedFields);
     
-    // Merge searchFields into paginationQuery
+    // Convert string booleans
+    if (filters.isActive !== undefined) {
+      filters.isActive = filters.isActive === 'true';
+    }
+    
+    // Convert numeric fields
+    if (filters.maxQuantity !== undefined) {
+      filters.maxQuantity = Number(filters.maxQuantity);
+    }
+    if (filters.issuedCount !== undefined) {
+      filters.issuedCount = Number(filters.issuedCount);
+    }
+    
     const query = {
-      ...paginationQuery,
-      searchFields
+      ...pagination,
+      searchFields: filters
     };
     
     const result = await EventService.getAllEvents(query);
