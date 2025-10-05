@@ -466,6 +466,7 @@ describe("transformVoucher", () => {
       minimumOrderAmount: 100,
       maximumDiscount: 50,
       notes: "Special voucher for VIP customers",
+      status: "expired", // Added status field
       event: {
         id: mockVoucher.eventId.toString(),
         name: undefined,
@@ -556,6 +557,7 @@ describe("transformVoucher", () => {
       minimumOrderAmount: undefined,
       maximumDiscount: undefined,
       notes: undefined,
+      status: "inactive", // Added status field
       event: {
         id: mockVoucher.eventId.toString(),
         name: undefined,

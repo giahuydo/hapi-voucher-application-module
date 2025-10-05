@@ -182,7 +182,9 @@ export const getAllVouchers = async (query: PaginationQuery) => {
   if (searchFields.issuedTo) filter.issuedTo = searchFields.issuedTo;
   if (searchFields.code) filter.code = { $regex: searchFields.code, $options: 'i' };
   if (searchFields.isUsed !== undefined) filter.isUsed = searchFields.isUsed;
-  if (searchFields.type) filter.type = searchFields.type;
+  if (searchFields.type && searchFields.type !== 'all' && searchFields.type !== '') {
+    filter.type = searchFields.type;
+  }
   if (searchFields.isActive !== undefined) filter.isActive = searchFields.isActive;
   
   // Handle status filter (computed field)

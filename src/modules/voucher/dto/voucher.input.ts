@@ -51,7 +51,7 @@ export const getAllVouchersQuerySchema = Joi.object({
   eventId: Joi.string().length(24).description('Filter by event ID'),
   issuedTo: Joi.string().description('Filter by user ID'),
   isUsed: Joi.boolean().description('Filter by usage status'),
-  type: Joi.string().valid('percentage', 'fixed').description('Filter by voucher type'),
+  type: Joi.string().valid('percentage', 'fixed', 'all').allow('').description('Filter by voucher type (all = all types)'),
   isActive: Joi.boolean().description('Filter by active status'),
   status: Joi.string().valid('available', 'used', 'expired', 'inactive').description('Filter by voucher status'),
   // Date range filters
