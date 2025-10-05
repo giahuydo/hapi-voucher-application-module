@@ -12,6 +12,8 @@ import ErrorHandlerPlugin from './src/plugins/error-handler.plugin';
 import SwaggerPlugin from './src/plugins/swagger.plugin';
 import AgendaPlugin from './src/plugins/agenda.plugin';
 import BullBoardPlugin from './src/plugins/bull-board.plugin';
+import TelescopePlugin from './src/plugins/telescope.plugin';
+import PinoLoggerPlugin from './src/plugins/pino-logger.plugin';
 
 // Routes
 import voucherRoutes from './src/modules/voucher/api/voucher.routes';
@@ -38,20 +40,41 @@ async function init() {
     await initRedis(); // make sure initRedis() calls ping internally
     console.log('✅ Redis ready');
 
-    // 3) Create Hapi server
-    const server = Hapi.server({
-      port: Number(process.env.PORT) || 3000,
-      host: '0.0.0.0',
-      routes: {
-        cors: {
-          origin: ['*'],
-          additionalHeaders: ['authorization', 'content-type'],
-          additionalExposedHeaders: ['authorization'],
-          credentials: true,
-        },
-      },
-      debug: { request: ['error', 'uncaught'] },
-    });
+    // 3) Create Hapi server with port fallback
+    const createServerWithFallback = async (port: number, maxAttempts = 5): Promise<Hapi.Server> => {
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const server = Hapi.server({
+            port: port + attempt,
+            host: '0.0.0.0',
+            routes: {
+              cors: {
+                origin: ['*'],
+                additionalHeaders: ['authorization', 'content-type'],
+                additionalExposedHeaders: ['authorization'],
+                credentials: true,
+              },
+            },
+            debug: { request: ['error', 'uncaught'] },
+          });
+          
+          if (attempt > 0) {
+            console.log(`⚠️  Port ${port} was busy, using port ${port + attempt} instead`);
+          }
+          
+          return server;
+        } catch (err: any) {
+          if (err.code === 'EADDRINUSE' && attempt < maxAttempts - 1) {
+            console.log(`⚠️  Port ${port + attempt} is busy, trying ${port + attempt + 1}...`);
+            continue;
+          }
+          throw err;
+        }
+      }
+      throw new Error(`All ports ${port}-${port + maxAttempts - 1} are busy`);
+    };
+
+    const server = await createServerWithFallback(Number(process.env.PORT) || 3000);
     console.log('✅ Hapi server initialized');
 
     // 4) Health check route (no auth required)
@@ -64,11 +87,13 @@ async function init() {
 
     // 5) Register plugins (auth, error handling, docs, schedulers, dashboards)
     await server.register([
+      PinoLoggerPlugin,
       AuthJwtPlugin,
       ErrorHandlerPlugin,
       SwaggerPlugin,
       AgendaPlugin,
       BullBoardPlugin,
+      TelescopePlugin,
     ]);
     console.log('✅ Plugins registered');
 
@@ -81,6 +106,7 @@ async function init() {
     await server.start();
     console.log(`🚀 Server running at ${server.info.uri}`);
     console.log(`📚 Swagger docs at ${server.info.uri}/docs`);
+    console.log(`🔭 Telescope Dashboard at ${server.info.uri}/telescope`);
 
     // 8) Graceful shutdown on SIGTERM or SIGINT
     const shutdown = async (signal: string) => {

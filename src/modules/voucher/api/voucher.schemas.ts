@@ -36,6 +36,8 @@ export const voucherResponseSchemas = {
     minimumOrderAmount: Joi.number().min(0).optional().description('Minimum order amount required'),
     maximumDiscount: Joi.number().min(0).optional().description('Maximum discount amount'),
     notes: Joi.string().optional().description('Additional notes'),
+    // Computed status field
+    status: Joi.string().valid('available', 'used', 'expired', 'inactive').optional().description('Voucher status'),
     // Populated event information
     event: Joi.object({
       id: Joi.string().description('Event ID'),

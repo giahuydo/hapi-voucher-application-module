@@ -11,12 +11,23 @@ import { parseSearchParameters } from '../../../../utils/PaginationQuery';
 export const getAllVouchers = async (req: Request, h: ResponseToolkit) => {
   try {
     // Define searchable fields and their types for vouchers
-    const searchableFields = ['code', 'issuedTo', 'eventId', 'userId'];
+    const searchableFields = [
+      'code', 'issuedTo', 'eventId', 'userId', 'type', 'isActive', 
+      'isUsed', 'status', 'validFrom', 'validTo', 'createdFrom', 'createdTo'
+    ];
     const fieldTypes = {
       code: { type: 'string' as const },
       issuedTo: { type: 'objectId' as const },
       eventId: { type: 'objectId' as const },
-      userId: { type: 'objectId' as const }
+      userId: { type: 'objectId' as const },
+      type: { type: 'string' as const },
+      isActive: { type: 'boolean' as const },
+      isUsed: { type: 'boolean' as const },
+      status: { type: 'string' as const },
+      validFrom: { type: 'string' as const },
+      validTo: { type: 'string' as const },
+      createdFrom: { type: 'string' as const },
+      createdTo: { type: 'string' as const }
     };
     
     // Parse dynamic search parameters with allowed fields and types
@@ -83,6 +94,18 @@ export const deleteVoucher = async (req: Request, h: ResponseToolkit) => {
     const { id } = req.params;
     const result = await VoucherService.deleteVoucher(id);
     return formatSuccess(h, result, 'Voucher deleted successfully');
+  } catch (err) {
+    return formatError(h, err);
+  }
+};
+
+/**
+ * Get voucher filter options (events, statuses, types)
+ */
+export const getVoucherFilterOptions = async (req: Request, h: ResponseToolkit) => {
+  try {
+    const options = await VoucherService.getVoucherFilterOptions();
+    return formatSuccess(h, options, 'Filter options retrieved successfully');
   } catch (err) {
     return formatError(h, err);
   }

@@ -49,6 +49,18 @@ export function transformVoucher(input: VoucherDocument | VoucherInput): Voucher
   const isPopulated = input.eventId && typeof input.eventId === 'object' && '_id' in input.eventId;
   const populatedEvent = isPopulated ? input.eventId as PopulatedEvent : null;
   
+  // Calculate voucher status
+  const now = new Date();
+  let status: 'available' | 'used' | 'expired' | 'inactive' = 'available';
+  
+  if (input.isUsed) {
+    status = 'used';
+  } else if (!input.isActive) {
+    status = 'inactive';
+  } else if (input.validTo && new Date(input.validTo) < now) {
+    status = 'expired';
+  }
+  
   return {
     id: input._id?.toString?.() ?? '',
     eventId: isPopulated ? populatedEvent!._id.toString() : input.eventId?.toString?.() ?? '',
@@ -74,6 +86,8 @@ export function transformVoucher(input: VoucherDocument | VoucherInput): Voucher
     minimumOrderAmount: input.minimumOrderAmount,
     maximumDiscount: input.maximumDiscount,
     notes: input.notes,
+    // Computed status field
+    status: status,
     // Event information from populate if available
     event: isPopulated ? {
       id: populatedEvent!._id.toString(),

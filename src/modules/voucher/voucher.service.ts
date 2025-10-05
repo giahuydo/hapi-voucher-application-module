@@ -172,14 +172,67 @@ const getVoucherDataForEmail = async (eventId: string, userId: string, code: str
 
 export const getAllVouchers = async (query: PaginationQuery) => {
   // Custom pagination with event population to demonstrate collection linking
-  const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', searchFields = {} } = query;
+  const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', searchFields = {}, search } = query;
   
   // Build filter conditions
   const filter: any = {};
+  
+  // Handle specific field filters
   if (searchFields.eventId) filter.eventId = searchFields.eventId;
   if (searchFields.issuedTo) filter.issuedTo = searchFields.issuedTo;
   if (searchFields.code) filter.code = { $regex: searchFields.code, $options: 'i' };
   if (searchFields.isUsed !== undefined) filter.isUsed = searchFields.isUsed;
+  if (searchFields.type) filter.type = searchFields.type;
+  if (searchFields.isActive !== undefined) filter.isActive = searchFields.isActive;
+  
+  // Handle status filter (computed field)
+  if (searchFields.status) {
+    const now = new Date();
+    switch (searchFields.status) {
+      case 'available':
+        filter.isUsed = false;
+        filter.isActive = true;
+        filter.$or = [
+          { validTo: { $exists: false } },
+          { validTo: { $gt: now } }
+        ];
+        break;
+      case 'used':
+        filter.isUsed = true;
+        break;
+      case 'expired':
+        filter.validTo = { $lt: now };
+        break;
+      case 'inactive':
+        filter.isActive = false;
+        break;
+    }
+  }
+  
+  // Handle date range filters
+  if (searchFields.validFrom || searchFields.validTo) {
+    filter.validFrom = {};
+    if (searchFields.validFrom) filter.validFrom.$gte = new Date(searchFields.validFrom);
+    if (searchFields.validTo) filter.validFrom.$lte = new Date(searchFields.validTo);
+  }
+  
+  if (searchFields.createdFrom || searchFields.createdTo) {
+    filter.createdAt = {};
+    if (searchFields.createdFrom) filter.createdAt.$gte = new Date(searchFields.createdFrom);
+    if (searchFields.createdTo) filter.createdAt.$lte = new Date(searchFields.createdTo);
+  }
+  
+  // Handle global search across multiple fields
+  if (search) {
+    const searchRegex = { $regex: search, $options: 'i' };
+    filter.$or = [
+      { code: searchRegex },
+      { name: searchRegex },
+      { description: searchRegex },
+      { recipientName: searchRegex },
+      { notes: searchRegex }
+    ];
+  }
 
   // Calculate skip
   const skip = (page - 1) * limit;
@@ -213,6 +266,54 @@ export const getAllVouchers = async (query: PaginationQuery) => {
       hasPrev: page > 1
     }
   };
+};
+
+/**
+ * Get filter options for vouchers (events, statuses, types)
+ */
+export const getVoucherFilterOptions = async () => {
+  try {
+    // Get all active events for dropdown
+    const events = await Event.find({ isActive: true })
+      .select('_id name description')
+      .sort({ name: 1 })
+      .lean();
+
+    // Get unique voucher types
+    const types = await Voucher.distinct('type', { type: { $exists: true } });
+
+    // Get usage statistics
+    const totalVouchers = await Voucher.countDocuments();
+    const usedVouchers = await Voucher.countDocuments({ isUsed: true });
+    const availableVouchers = await Voucher.countDocuments({ isUsed: false, isActive: true });
+    const expiredVouchers = await Voucher.countDocuments({ 
+      validTo: { $lt: new Date() } 
+    });
+
+    return {
+      events: events.map(event => ({
+        id: event._id.toString(),
+        name: event.name,
+        description: event.description
+      })),
+      types: types.filter(type => type !== null),
+      statuses: [
+        { value: 'available', label: 'Available', count: availableVouchers },
+        { value: 'used', label: 'Used', count: usedVouchers },
+        { value: 'expired', label: 'Expired', count: expiredVouchers },
+        { value: 'inactive', label: 'Inactive', count: totalVouchers - availableVouchers - usedVouchers }
+      ],
+      statistics: {
+        total: totalVouchers,
+        available: availableVouchers,
+        used: usedVouchers,
+        expired: expiredVouchers
+      }
+    };
+  } catch (error) {
+    logger.error('[getVoucherFilterOptions] ❌ Error getting filter options:', error);
+    throw createError('Failed to get filter options', '500');
+  }
 };
 
 export const getVoucherById = async (id: string): Promise<VoucherDTO> => {

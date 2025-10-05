@@ -44,12 +44,21 @@ export const eventIdParamSchema = Joi.object({
 export const getAllVouchersQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1).description('Page number'),
   limit: Joi.number().integer().min(1).max(100).default(10).description('Items per page'),
-  sortBy: Joi.string().valid('createdAt', 'updatedAt', 'code').default('createdAt').description('Sort field'),
+  sortBy: Joi.string().valid('createdAt', 'updatedAt', 'code', 'name', 'type', 'value').default('createdAt').description('Sort field'),
   sortOrder: Joi.string().valid('asc', 'desc').default('desc').description('Sort order'),
-  search: Joi.string().min(1).description('Search across all fields'),
+  search: Joi.string().min(1).description('Search across voucher code, name, description, recipient name, and notes'),
+  // Filter fields
   eventId: Joi.string().length(24).description('Filter by event ID'),
   issuedTo: Joi.string().description('Filter by user ID'),
-  isUsed: Joi.boolean().description('Filter by usage status')
+  isUsed: Joi.boolean().description('Filter by usage status'),
+  type: Joi.string().valid('percentage', 'fixed').description('Filter by voucher type'),
+  isActive: Joi.boolean().description('Filter by active status'),
+  status: Joi.string().valid('available', 'used', 'expired', 'inactive').description('Filter by voucher status'),
+  // Date range filters
+  validFrom: Joi.string().isoDate().description('Filter vouchers valid from this date'),
+  validTo: Joi.string().isoDate().description('Filter vouchers valid until this date'),
+  createdFrom: Joi.string().isoDate().description('Filter vouchers created from this date'),
+  createdTo: Joi.string().isoDate().description('Filter vouchers created until this date')
 }).unknown(true);
 
 /**

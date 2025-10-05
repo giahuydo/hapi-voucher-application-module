@@ -26,6 +26,8 @@ export interface VoucherDTO {
   minimumOrderAmount?: number;
   maximumDiscount?: number;
   notes?: string;
+  // Computed status field
+  status?: 'available' | 'used' | 'expired' | 'inactive';
   // Event information from populate
   event: {
     id: string;

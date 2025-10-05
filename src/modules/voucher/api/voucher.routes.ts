@@ -6,7 +6,8 @@ import {
   getVoucherById,
   useVoucher,
   releaseVoucher,
-  deleteVoucher
+  deleteVoucher,
+  getVoucherFilterOptions
 } from './voucher.handler';
 import {IdVoucherParamsSchema, getAllVouchersQuerySchema, issueVoucherPayloadSchema} from '../dto/voucher.input';
 import { voucherSwaggerResponses } from './voucher.schemas';
@@ -64,6 +65,55 @@ const voucherRoutes: ServerRoute[] = [
         'hapi-swagger': {
           responses: {
             200: voucherSwaggerResponses.listSuccess,
+            401: {
+              description: 'Unauthorized - Invalid or missing token',
+              schema: sharedErrorSchemas.unauthorized
+            }
+          }
+        }
+      }
+    }
+  },
+
+  // 🎛️ Get voucher filter options
+  {
+    method: 'GET',
+    path: '/vouchers/filter-options',
+    options: {
+      auth: 'jwt',
+      tags: ['api', 'vouchers'],
+      description: 'Get filter options for vouchers (events, statuses, types)',
+      notes: 'Returns available events, voucher types, statuses, and statistics for building filter dropdowns.',
+      handler: getVoucherFilterOptions,
+      plugins: {
+        'hapi-swagger': {
+          responses: {
+            200: {
+              description: 'Filter options retrieved successfully',
+              schema: Joi.object({
+                success: Joi.boolean().default(true),
+                message: Joi.string().default('Filter options retrieved successfully'),
+                data: Joi.object({
+                  events: Joi.array().items(Joi.object({
+                    id: Joi.string().description('Event ID'),
+                    name: Joi.string().description('Event name'),
+                    description: Joi.string().description('Event description')
+                  })),
+                  types: Joi.array().items(Joi.string().valid('percentage', 'fixed')),
+                  statuses: Joi.array().items(Joi.object({
+                    value: Joi.string().description('Status value'),
+                    label: Joi.string().description('Status label'),
+                    count: Joi.number().description('Number of vouchers with this status')
+                  })),
+                  statistics: Joi.object({
+                    total: Joi.number().description('Total vouchers'),
+                    available: Joi.number().description('Available vouchers'),
+                    used: Joi.number().description('Used vouchers'),
+                    expired: Joi.number().description('Expired vouchers')
+                  })
+                }).label('VoucherFilterOptions')
+              }).label('VoucherFilterOptionsResponse')
+            },
             401: {
               description: 'Unauthorized - Invalid or missing token',
               schema: sharedErrorSchemas.unauthorized
