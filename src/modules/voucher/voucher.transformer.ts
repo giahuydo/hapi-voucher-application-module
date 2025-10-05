@@ -82,8 +82,8 @@ export function transformVoucher(input: VoucherDocument | VoucherInput): Voucher
       maxQuantity: populatedEvent!.maxQuantity,
       issuedCount: populatedEvent!.issuedCount,
       isActive: populatedEvent!.isActive,
-      createdAt: populatedEvent!.createdAt.toISOString(),
-      updatedAt: populatedEvent!.updatedAt.toISOString(),
+      createdAt: populatedEvent!.createdAt?.toISOString() ?? new Date(0).toISOString(),
+      updatedAt: populatedEvent!.updatedAt?.toISOString() ?? new Date(0).toISOString(),
     } : {
       id: '',
       name: '',

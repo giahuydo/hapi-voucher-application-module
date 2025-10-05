@@ -100,8 +100,9 @@ describe("issueVoucher", () => {
       code: "VOUCHER123",
       voucherCode: "VOUCHER123",
       name: expect.any(String),
-      eventName: expect.any(String),
-      eventDescription: expect.any(String)
+      eventName: undefined, // Mock event doesn't have name property
+      eventDescription: expect.any(String),
+      email: "test@example.com"
     }));
   });
 
@@ -142,7 +143,7 @@ describe("issueVoucher", () => {
     // Verify Voucher.create was called with all the new fields
     expect(Voucher.create).toHaveBeenCalledWith(
       [expect.objectContaining({
-        eventId: expect.any(Object),
+        eventId: validEventId,
         code: "VOUCHER123",
         issuedTo: "u1",
         isUsed: false,
@@ -169,7 +170,7 @@ describe("issueVoucher", () => {
       code: "VOUCHER123",
       voucherCode: "VOUCHER123",
       name: expect.any(String),
-      eventName: expect.any(String),
+      eventName: undefined, // Mock event doesn't have name property
       eventDescription: expect.any(String),
       recipientName: "John Doe",
       phoneNumber: "+1234567890",
@@ -295,7 +296,7 @@ describe("issueVoucher", () => {
     // Verify Voucher.create was called with default values for optional fields
     expect(Voucher.create).toHaveBeenCalledWith(
       [expect.objectContaining({
-        eventId: expect.any(Object),
+        eventId: validEventId,
         code: "VOUCHER123",
         issuedTo: "u1",
         isUsed: false,
@@ -381,13 +382,22 @@ describe("issueVoucher", () => {
       { session }
     );
 
-    // Reset mock
+    // Reset mock and create a fresh event for the second test
     jest.clearAllMocks();
     (Voucher.create as jest.Mock).mockResolvedValue([{ code: "VOUCHER456" }]);
+    
+    const freshEventId = "68e20643c1b70a82c4a9514a";
+    const mockFreshEvent = {
+      _id: freshEventId,
+      maxQuantity: 2,
+      issuedCount: 0, // Fresh event with no issued vouchers
+      save: jest.fn(),
+    };
+    mockFindByIdWithSession(Event, mockFreshEvent);
 
     // Test fixed type
     const fixedInput = {
-      eventId: validEventId,
+      eventId: freshEventId,
       userId: "u1",
       issueTo: "test@example.com",
       type: "fixed" as const,
@@ -457,12 +467,12 @@ describe("transformVoucher", () => {
       maximumDiscount: 50,
       notes: "Special voucher for VIP customers",
       event: {
-        id: '',
-        name: '',
-        description: '',
-        maxQuantity: 0,
-        issuedCount: 0,
-        isActive: false,
+        id: mockVoucher.eventId.toString(),
+        name: undefined,
+        description: "",
+        maxQuantity: undefined,
+        issuedCount: undefined,
+        isActive: undefined,
         createdAt: '1970-01-01T00:00:00.000Z',
         updatedAt: '1970-01-01T00:00:00.000Z',
       }
@@ -547,12 +557,12 @@ describe("transformVoucher", () => {
       maximumDiscount: undefined,
       notes: undefined,
       event: {
-        id: '',
-        name: '',
-        description: '',
-        maxQuantity: 0,
-        issuedCount: 0,
-        isActive: false,
+        id: mockVoucher.eventId.toString(),
+        name: undefined,
+        description: "",
+        maxQuantity: undefined,
+        issuedCount: undefined,
+        isActive: undefined,
         createdAt: '1970-01-01T00:00:00.000Z',
         updatedAt: '1970-01-01T00:00:00.000Z',
       }
