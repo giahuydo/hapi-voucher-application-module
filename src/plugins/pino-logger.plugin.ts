@@ -25,6 +25,12 @@ const pinoLoggerPlugin: Plugin<any> = {
     const pinoMiddleware = pinoHttp({
       logger: logger,
       customLogLevel: function (req, res, err) {
+        // Skip logging for Render health checks
+        const userAgent = req.headers['user-agent'] || '';
+        if (userAgent.startsWith('Render/')) {
+          return 'silent';
+        }
+        
         if (res.statusCode >= 400 && res.statusCode < 500) {
           return 'warn';
         } else if (res.statusCode >= 500 || err) {
@@ -79,6 +85,12 @@ const pinoLoggerPlugin: Plugin<any> = {
 
     // Log response
     server.ext('onPreResponse', (request, h) => {
+      // Skip logging for Render health checks
+      const userAgent = request.headers['user-agent'] || '';
+      if (userAgent.startsWith('Render/')) {
+        return h.continue;
+      }
+      
       const responseTime = Date.now() - request.info.received;
       
       if (request.response && 'statusCode' in request.response) {
