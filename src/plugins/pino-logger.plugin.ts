@@ -25,12 +25,6 @@ const pinoLoggerPlugin: Plugin<any> = {
     const pinoMiddleware = pinoHttp({
       logger: logger,
       customLogLevel: function (req, res, err) {
-        // Skip logging for Render health checks
-        const userAgent = req.headers['user-agent'] || '';
-        if (userAgent.startsWith('Render/')) {
-          return 'silent';
-        }
-        
         if (res.statusCode >= 400 && res.statusCode < 500) {
           return 'warn';
         } else if (res.statusCode >= 500 || err) {
@@ -85,34 +79,36 @@ const pinoLoggerPlugin: Plugin<any> = {
 
     // Log response
     server.ext('onPreResponse', (request, h) => {
-      // Skip logging for Render health checks
-      const userAgent = request.headers['user-agent'] || '';
-      if (userAgent.startsWith('Render/')) {
-        return h.continue;
-      }
-      
       const responseTime = Date.now() - request.info.received;
+      const userAgent = request.headers['user-agent'] || '';
+      const isRenderHealthCheck = userAgent.startsWith('Render/');
       
       if (request.response && 'statusCode' in request.response) {
-        logger.info({
-          request: {
-            method: request.method,
-            url: request.url.href,
-            headers: request.headers,
-            query: request.query,
-            params: request.params,
-            payload: request.payload
-          },
-          response: {
-            statusCode: request.response.statusCode,
-            headers: request.response.headers
-          },
-          responseTime: responseTime,
-          user: request.auth?.credentials ? {
-            id: (request.auth.credentials as any).userId,
-            email: (request.auth.credentials as any).email
-          } : null
-        }, `${request.method} ${request.url.pathname} - ${request.response.statusCode}`);
+        if (isRenderHealthCheck) {
+          // Short log for Render health checks
+          logger.info(`${request.method} ${request.url.pathname} - ${request.response.statusCode} (${responseTime}ms)`);
+        } else {
+          // Full log for regular requests
+          logger.info({
+            request: {
+              method: request.method,
+              url: request.url.href,
+              headers: request.headers,
+              query: request.query,
+              params: request.params,
+              payload: request.payload
+            },
+            response: {
+              statusCode: request.response.statusCode,
+              headers: request.response.headers
+            },
+            responseTime: responseTime,
+            user: request.auth?.credentials ? {
+              id: (request.auth.credentials as any).userId,
+              email: (request.auth.credentials as any).email
+            } : null
+          }, `${request.method} ${request.url.pathname} - ${request.response.statusCode}`);
+        }
       }
       
       return h.continue;
