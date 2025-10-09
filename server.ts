@@ -108,7 +108,13 @@ async function init() {
     server.route([...publicAuthRoutes, ...voucherRoutes, ...eventRoutes, ...userRoutes]);
     console.log('✅ Routes registered');
 
-    // 7) Start server
+    // 7) Filter out Render health check logs
+    server.events.on('response', (request) => {
+      const userAgent = request.headers['user-agent'] || '';
+      if (userAgent.startsWith('Render/')) return; // Skip Render health check logs
+    });
+
+    // 8) Start server
     await server.start();
     console.log(`🚀 Server running at ${server.info.uri}`);
     console.log(`📚 Swagger docs at ${server.info.uri}/docs`);
@@ -118,7 +124,7 @@ async function init() {
       console.log(`🔭 Telescope Dashboard at ${server.info.uri}/telescope`);
     }
 
-    // 8) Graceful shutdown on SIGTERM or SIGINT
+    // 9) Graceful shutdown on SIGTERM or SIGINT
     const shutdown = async (signal: string) => {
       console.log(`🛑 ${signal} received. Cleaning up...`);
       try {

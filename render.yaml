@@ -16,7 +16,7 @@ services:
       - key: REDIS_HOST
         sync: false
       - key: REDIS_PORT
-        value: 6379
+        sync: false
       - key: REDIS_PASSWORD
         sync: false
       - key: REDIS_DB
@@ -56,7 +56,7 @@ services:
       - key: REDIS_HOST
         sync: false
       - key: REDIS_PORT
-        value: 6379
+        sync: false
       - key: REDIS_PASSWORD
         sync: false
       - key: REDIS_DB
