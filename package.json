@@ -8,7 +8,7 @@
     "worker": "node dist/jobs/worker/email.worker.js",
     "workers": "bash run-all-workers.sh",
     "build": "tsc",
-    "build:prod": "npm ci --only=production && npm run build",
+    "build:prod": "tsc --project tsconfig.prod.json",
     "prestart": "npm run build",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -16,7 +16,7 @@
     "test:ci": "jest --ci --coverage --watchAll=false",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "postinstall": "npm run build",
+    "postinstall": "npm run build:prod",
     "engines": {
       "node": ">=18.0.0",
       "npm": ">=8.0.0"
@@ -51,16 +51,16 @@
     "pino-http": "^11.0.0",
     "pino-pretty": "^13.1.1",
     "socket.io": "^4.8.1",
-    "winston": "^3.17.0"
-  },
-  "devDependencies": {
+    "winston": "^3.17.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/hapi__hapi": "^20.0.13",
-    "@types/jest": "^29.5.14",
     "@types/joi": "^17.2.2",
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^24.0.13",
-    "@types/nodemailer": "^6.4.17",
+    "@types/nodemailer": "^6.4.17"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^8.36.0",
     "@typescript-eslint/parser": "^8.36.0",

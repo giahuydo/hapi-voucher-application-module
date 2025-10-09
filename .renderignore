@@ -21,3 +21,6 @@ coverage
 tests
 jest.config.js
 tsconfig.json
+**/*.test.ts
+**/*.spec.ts
+**/*.example.ts
