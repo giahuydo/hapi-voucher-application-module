@@ -5,7 +5,10 @@ dotenv.config();
 import Hapi from '@hapi/hapi';
 import mongoose from 'mongoose';
 import { initRedis, closeRedisClient } from './src/config/redis';
-import { startEmailWorker } from './jobs/worker/email.worker';
+// Import worker - different paths for dev vs production
+const startEmailWorker = process.env.NODE_ENV === 'production' 
+  ? require('./dist/jobs/worker/email.worker').startEmailWorker
+  : require('./jobs/worker/email.worker').startEmailWorker;
 
 // Plugins
 import AuthJwtPlugin from './src/plugins/auth-jwt.plugin';
@@ -43,10 +46,13 @@ async function init() {
 
     // 3) Start Email Worker (in same process)
     try {
+      console.log('🔄 Starting email worker...');
       await startEmailWorker();
-      console.log('✅ Email worker started');
+      console.log('✅ Email worker started successfully');
+      console.log('📧 Email worker is ready to process jobs');
     } catch (error) {
       console.error('❌ Failed to start email worker:', error);
+      console.error('Error details:', error);
       // Don't exit, continue with web server
     }
 
