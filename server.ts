@@ -42,8 +42,13 @@ async function init() {
     console.log('✅ Redis ready');
 
     // 3) Start Email Worker (in same process)
-    await startEmailWorker();
-    console.log('✅ Email worker started');
+    try {
+      await startEmailWorker();
+      console.log('✅ Email worker started');
+    } catch (error) {
+      console.error('❌ Failed to start email worker:', error);
+      // Don't exit, continue with web server
+    }
 
     // 4) Create Hapi server with port fallback
     const createServerWithFallback = async (port: number, maxAttempts = 5): Promise<Hapi.Server> => {

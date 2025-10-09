@@ -103,10 +103,15 @@ setInterval(async () => {
 // Initialize worker
 const init = async () => {
   try {
-    // Connect to MongoDB
-    const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/voucher_app';
-    await mongoose.connect(mongoUri);
-    logger.info('✅ Email worker connected to MongoDB');
+    // Check if MongoDB is already connected (when running in same process as server)
+    if (mongoose.connection.readyState === 1) {
+      logger.info('✅ Email worker using existing MongoDB connection');
+    } else {
+      // Connect to MongoDB (when running standalone)
+      const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/voucher_app';
+      await mongoose.connect(mongoUri);
+      logger.info('✅ Email worker connected to MongoDB');
+    }
 
     // Register process handlers
     registerProcessHandlers();
