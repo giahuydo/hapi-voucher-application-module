@@ -19,6 +19,8 @@ services:
         value: 6379
       - key: REDIS_PASSWORD
         sync: false
+      - key: REDIS_DB
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: EMAIL_USER
@@ -56,6 +58,8 @@ services:
       - key: REDIS_PORT
         value: 6379
       - key: REDIS_PASSWORD
+        sync: false
+      - key: REDIS_DB
         sync: false
       - key: EMAIL_USER
         sync: false

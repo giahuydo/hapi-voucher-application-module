@@ -137,7 +137,7 @@ const config: Config = {
     host: process.env.REDIS_HOST!,
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     password: process.env.REDIS_PASSWORD,
-    db: parseInt(process.env.REDIS_DB || '0', 10),
+    db: parseInt(process.env.REDIS_DB || '0', 10) || 0,
   },
   auth: {
     jwt: {
@@ -164,7 +164,7 @@ const config: Config = {
         host: process.env.REDIS_HOST!,
         port: parseInt(process.env.REDIS_PORT || '6379', 10),
         password: process.env.REDIS_PASSWORD,
-        db: parseInt(process.env.REDIS_DB || '0', 10),
+        db: parseInt(process.env.REDIS_DB || '0', 10) || 0,
       },
       defaultJobOptions: {
         attempts: parseInt(process.env.QUEUE_ATTEMPTS || '3', 10),
