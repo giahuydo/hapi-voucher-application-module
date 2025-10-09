@@ -1,14 +1,19 @@
 // Load environment variables first, before anything else uses process.env
 import * as dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+
 dotenv.config();
 
 import Hapi from '@hapi/hapi';
 import mongoose from 'mongoose';
 import { initRedis, closeRedisClient } from './src/config/redis';
 // Import worker - different paths for dev vs production
-const startEmailWorker = process.env.NODE_ENV === 'production' 
-  ? require('./dist/jobs/worker/email.worker').startEmailWorker
-  : require('./jobs/worker/email.worker').startEmailWorker;
+const prodPath = path.resolve(__dirname, 'jobs/worker/email.worker.js');          // khi đã build ra dist
+const devPath  = path.resolve(__dirname, '../src/jobs/worker/email.worker.ts');  // khi chạy ts-node/ts-node-dev
+
+const candidate = fs.existsSync(prodPath) ? prodPath : devPath;
+const { startEmailWorker } = require(candidate);
 
 // Plugins
 import AuthJwtPlugin from './src/plugins/auth-jwt.plugin';
