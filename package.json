@@ -5,15 +5,17 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
-    "worker": "ts-node jobs/worker/email.worker.ts",
+    "worker": "node dist/jobs/worker/email.worker.js",
     "workers": "bash run-all-workers.sh",
     "build": "tsc",
+    "build:prod": "npm ci --only=production && npm run build",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "postinstall": "npm run build"
   },
   "keywords": [],
   "author": "",

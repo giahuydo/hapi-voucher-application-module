@@ -1,0 +1,67 @@
+services:
+  - type: web
+    name: hapi-voucher-app
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: 6379
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_FROM
+        value: Voucher App <no-reply@voucherapp.com>
+      - key: EMAIL_REPLY_TO
+        value: support@voucherapp.com
+      - key: LOG_LEVEL
+        value: warn
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: HEALTH_CHECK_ENABLED
+        value: true
+      - key: METRICS_ENABLED
+        value: true
+
+  - type: worker
+    name: hapi-voucher-worker
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: 6379
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_FROM
+        value: Voucher App <no-reply@voucherapp.com>
+      - key: EMAIL_REPLY_TO
+        value: support@voucherapp.com
+      - key: LOG_LEVEL
+        value: warn
