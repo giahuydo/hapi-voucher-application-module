@@ -37,6 +37,8 @@ services:
         value: true
       - key: METRICS_ENABLED
         value: true
+      - key: TELESCOPE_ENABLED
+        value: false
 
   - type: worker
     name: hapi-voucher-worker
@@ -65,3 +67,5 @@ services:
         value: support@voucherapp.com
       - key: LOG_LEVEL
         value: warn
+      - key: TELESCOPE_ENABLED
+        value: false

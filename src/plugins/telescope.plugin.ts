@@ -63,7 +63,7 @@ class TelescopeLogger extends EventEmitter {
 
 const telescopeLogger = new TelescopeLogger();
 
-const telescopePlugin: Plugin = {
+const telescopePlugin: Plugin<any> = {
   name: 'telescope',
   version: '1.0.0',
   register: async (server: Server) => {
@@ -146,7 +146,7 @@ const telescopePlugin: Plugin = {
     // Hapi request logging
     server.ext('onRequest', (request, h) => {
       const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      request.app.requestId = requestId;
+      (request.app as any).requestId = requestId;
 
       const log: RequestLog = {
         id: requestId,
@@ -169,14 +169,19 @@ const telescopePlugin: Plugin = {
 
     // Hapi response logging
     server.ext('onPreResponse', (request, h) => {
-      const requestId = request.app.requestId;
+      const requestId = (request.app as any).requestId;
       if (requestId) {
         const responseTime = Date.now() - request.info.received;
         
+        // Type guard to check if response is not a Boom error
+        const isResponseObject = (response: any): response is { statusCode: number; headers: any; source: any } => {
+          return response && typeof response === 'object' && 'statusCode' in response;
+        };
+        
         const response = {
-          statusCode: request.response?.statusCode || 500,
-          headers: request.response?.headers || {},
-          payload: request.response?.source,
+          statusCode: isResponseObject(request.response) ? request.response.statusCode : 500,
+          headers: isResponseObject(request.response) ? request.response.headers || {} : {},
+          payload: isResponseObject(request.response) ? request.response.source : null,
           responseTime
         };
 

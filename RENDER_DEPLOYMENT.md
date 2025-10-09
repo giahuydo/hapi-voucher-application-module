@@ -102,10 +102,11 @@ curl https://your-app-name.onrender.com/
 https://your-app-name.onrender.com/docs
 ```
 
-### Telescope Dashboard
+### Telescope Dashboard (Development only)
 ```
 https://your-app-name.onrender.com/telescope
 ```
+**Note**: Telescope Dashboard chỉ hoạt động trong development mode. Trong production, nó sẽ bị tắt tự động.
 
 ## 🛠️ Troubleshooting
 

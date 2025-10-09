@@ -86,15 +86,21 @@ async function init() {
     });
 
     // 5) Register plugins (auth, error handling, docs, schedulers, dashboards)
-    await server.register([
+    const plugins = [
       PinoLoggerPlugin,
       AuthJwtPlugin,
       ErrorHandlerPlugin,
       SwaggerPlugin,
       AgendaPlugin,
       BullBoardPlugin,
-      TelescopePlugin,
-    ]);
+    ];
+    
+    // Only register TelescopePlugin in development
+    if (process.env.NODE_ENV !== 'production') {
+      plugins.push(TelescopePlugin);
+    }
+    
+    await server.register(plugins);
     console.log('✅ Plugins registered');
 
     // 6) Register routes (auth, voucher, event, user)
@@ -106,7 +112,11 @@ async function init() {
     await server.start();
     console.log(`🚀 Server running at ${server.info.uri}`);
     console.log(`📚 Swagger docs at ${server.info.uri}/docs`);
-    console.log(`🔭 Telescope Dashboard at ${server.info.uri}/telescope`);
+    
+    // Only show Telescope Dashboard in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`🔭 Telescope Dashboard at ${server.info.uri}/telescope`);
+    }
 
     // 8) Graceful shutdown on SIGTERM or SIGINT
     const shutdown = async (signal: string) => {
