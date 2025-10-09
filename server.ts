@@ -5,6 +5,7 @@ dotenv.config();
 import Hapi from '@hapi/hapi';
 import mongoose from 'mongoose';
 import { initRedis, closeRedisClient } from './src/config/redis';
+import { startEmailWorker } from './jobs/worker/email.worker';
 
 // Plugins
 import AuthJwtPlugin from './src/plugins/auth-jwt.plugin';
@@ -40,7 +41,11 @@ async function init() {
     await initRedis(); // make sure initRedis() calls ping internally
     console.log('✅ Redis ready');
 
-    // 3) Create Hapi server with port fallback
+    // 3) Start Email Worker (in same process)
+    await startEmailWorker();
+    console.log('✅ Email worker started');
+
+    // 4) Create Hapi server with port fallback
     const createServerWithFallback = async (port: number, maxAttempts = 5): Promise<Hapi.Server> => {
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {

@@ -10,7 +10,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000
+        sync: false
       - key: MONGO_URI
         sync: false
       - key: REDIS_HOST
@@ -42,34 +42,5 @@ services:
       - key: TELESCOPE_ENABLED
         value: false
 
-  - type: worker
-    name: hapi-voucher-worker
-    env: node
-    plan: free
-    buildCommand: npm ci --only=production && npm run build:prod
-    startCommand: node dist/jobs/worker/email.worker.js
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: MONGO_URI
-        sync: false
-      - key: REDIS_HOST
-        sync: false
-      - key: REDIS_PORT
-        sync: false
-      - key: REDIS_PASSWORD
-        sync: false
-      - key: REDIS_DB
-        sync: false
-      - key: EMAIL_USER
-        sync: false
-      - key: EMAIL_PASS
-        sync: false
-      - key: EMAIL_FROM
-        value: Voucher App <no-reply@voucherapp.com>
-      - key: EMAIL_REPLY_TO
-        value: support@voucherapp.com
-      - key: LOG_LEVEL
-        value: warn
-      - key: TELESCOPE_ENABLED
-        value: false
+# Worker is now integrated into the web service
+# No separate worker service needed for free tier
