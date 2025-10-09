@@ -87,7 +87,7 @@ async function init() {
 
     // 5) Register plugins (auth, error handling, docs, schedulers, dashboards)
     const plugins = [
-      PinoLoggerPlugin,
+      // PinoLoggerPlugin,
       AuthJwtPlugin,
       ErrorHandlerPlugin,
       SwaggerPlugin,
