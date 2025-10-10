@@ -8,12 +8,7 @@ dotenv.config();
 import Hapi from '@hapi/hapi';
 import mongoose from 'mongoose';
 import { initRedis, closeRedisClient } from './src/config/redis';
-// Import worker - different paths for dev vs production
-const prodPath = path.resolve(__dirname, 'jobs/worker/email.worker.js');          // khi đã build ra dist
-const devPath  = path.resolve(__dirname, '../src/jobs/worker/email.worker.ts');  // khi chạy ts-node/ts-node-dev
-
-const candidate = fs.existsSync(prodPath) ? prodPath : devPath;
-const { startEmailWorker } = require(candidate);
+import { startEmailWorker } from './jobs/worker/email.worker';
 
 // Plugins
 import AuthJwtPlugin from './src/plugins/auth-jwt.plugin';
@@ -22,7 +17,6 @@ import SwaggerPlugin from './src/plugins/swagger.plugin';
 import AgendaPlugin from './src/plugins/agenda.plugin';
 import BullBoardPlugin from './src/plugins/bull-board.plugin';
 import TelescopePlugin from './src/plugins/telescope.plugin';
-import PinoLoggerPlugin from './src/plugins/pino-logger.plugin';
 
 // Routes
 import voucherRoutes from './src/modules/voucher/api/voucher.routes';
@@ -108,7 +102,6 @@ async function init() {
 
     // 5) Register plugins (auth, error handling, docs, schedulers, dashboards)
     const plugins = [
-      // PinoLoggerPlugin,
       AuthJwtPlugin,
       ErrorHandlerPlugin,
       SwaggerPlugin,
