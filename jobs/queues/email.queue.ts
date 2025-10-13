@@ -3,11 +3,20 @@ import {logger} from '../../utils/logger';
 import { getRedisClient } from '../../src/config/redis';
 import config from '../../src/config';
 
+// Create Bull-compatible Redis config
+const redisConfig = {
+  host: config.redis.host,
+  port: config.redis.port,
+  password: config.redis.password,
+  db: config.redis.db,
+  // Bull-compatible options only
+  connectTimeout: 10000,
+  lazyConnect: true,
+  enableOfflineQueue: true, // Allow offline queue for better reliability
+};
+
 const emailQueue = new Bull('emailQueue', {
-  createClient: (type) => {
-    const client = getRedisClient();
-    return client.duplicate();
-  },
+  redis: redisConfig,
   defaultJobOptions: {
     attempts: config.queue.bull.defaultJobOptions.attempts,
     backoff: {
