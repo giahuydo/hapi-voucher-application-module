@@ -16,27 +16,65 @@ const registerProcessHandlers = () => {
     const { to, code, name, eventName } = voucherData;
     
     try {
-      logger.info(`Processing send-voucher-email job ${job.id} for ${to} (${name}) - Event: ${eventName} (attempt ${job.attemptsMade + 1})`);
+      logger.info(`🔄 Processing send-voucher-email job ${job.id} for ${to} (${name}) - Event: ${eventName} (attempt ${job.attemptsMade + 1})`);
+      console.log(`🔄 Processing send-voucher-email job ${job.id} for ${to} (${name}) - Event: ${eventName} (attempt ${job.attemptsMade + 1})`);
+      
+      // Log job data for debugging
+      logger.info(`📋 Job data:`, {
+        jobId: job.id,
+        email: to,
+        code,
+        name,
+        eventName,
+        attempt: job.attemptsMade + 1,
+        maxAttempts: job.opts.attempts || 3,
+        jobData: voucherData
+      });
+      console.log(`📋 Job data:`, {
+        jobId: job.id,
+        email: to,
+        code,
+        name,
+        eventName,
+        attempt: job.attemptsMade + 1,
+        maxAttempts: job.opts.attempts || 3
+      });
       
       const result = await sendEmail(voucherData);
       
       if (result.success) {
-        logger.info(`Send-voucher-email job ${job.id} completed successfully. Message ID: ${result.messageId}`);
+        logger.info(`✅ Send-voucher-email job ${job.id} completed successfully. Message ID: ${result.messageId}`);
+        console.log(`✅ Send-voucher-email job ${job.id} completed successfully. Message ID: ${result.messageId}`);
         return result;
       } else {
-        logger.error(`Send-voucher-email job ${job.id} failed: ${result.error}`);
+        logger.error(`❌ Send-voucher-email job ${job.id} failed: ${result.error}`);
+        console.error(`❌ Send-voucher-email job ${job.id} failed: ${result.error}`);
         throw new Error(result.error || 'Email sending failed');
       }
       
     } catch (error: any) {
-      logger.error(`Send-voucher-email job ${job.id} failed for ${to}:`, {
+      logger.error(`❌ Send-voucher-email job ${job.id} failed for ${to}:`, {
         error: error?.message || 'Unknown error',
         stack: error?.stack,
         jobId: job.id,
         email: to,
         code,
         attempts: job.attemptsMade + 1,
-        maxAttempts: job.opts.attempts || 3
+        maxAttempts: job.opts.attempts || 3,
+        errorCode: error?.code,
+        command: error?.command,
+        response: error?.response
+      });
+      console.error(`❌ Send-voucher-email job ${job.id} failed for ${to}:`, {
+        error: error?.message || 'Unknown error',
+        jobId: job.id,
+        email: to,
+        code,
+        attempts: job.attemptsMade + 1,
+        maxAttempts: job.opts.attempts || 3,
+        errorCode: error?.code,
+        command: error?.command,
+        response: error?.response
       });
       
       // Re-throw to trigger retry mechanism

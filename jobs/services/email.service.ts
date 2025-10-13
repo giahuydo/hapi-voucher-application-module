@@ -32,23 +32,63 @@ interface EmailResponse {
 
 export const sendEmail = async (data: voucherData): Promise<EmailResponse> => {
   try {
-    logger.info(`Starting email send to: ${data.to} with voucher code: ${data.code}`);
+    logger.info(`📧 Starting email send to: ${data.to} with voucher code: ${data.code}`);
+    console.log(`📧 Starting email send to: ${data.to} with voucher code: ${data.code}`);
+    
+    // Check email credentials
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      const error = 'Email credentials not configured';
+      logger.error(`❌ ${error}`);
+      console.error(`❌ ${error}`);
+      throw new AppError(error, 500);
+    }
+    
+    // Log email credentials info (without exposing password)
+    logger.info(`📧 Email config: user=${process.env.EMAIL_USER}, pass_length=${process.env.EMAIL_PASS?.length}`);
+    console.log(`📧 Email config: user=${process.env.EMAIL_USER}, pass_length=${process.env.EMAIL_PASS?.length}`);
     
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(data.to)) {
-      logger.warn(`Invalid email format: ${data.to}`);
+      logger.warn(`⚠️ Invalid email format: ${data.to}`);
+      console.warn(`⚠️ Invalid email format: ${data.to}`);
       throw new ValidationError('Invalid email format');
     }
 
-    // Create transporter
+    // Create transporter with timeout and retry settings
+    logger.info(`🔧 Creating email transporter with Gmail service...`);
+    console.log(`🔧 Creating email transporter with Gmail service...`);
+    
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-      }
+      },
+      // Add timeout and connection settings for Render
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000,   // 30 seconds
+      socketTimeout: 60000,     // 60 seconds
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      rateDelta: 20000,         // 20 seconds
+      rateLimit: 5              // 5 emails per rateDelta
     });
+    
+    // Test transporter connection
+    logger.info(`🔄 Testing email transporter connection...`);
+    console.log(`🔄 Testing email transporter connection...`);
+    
+    try {
+      await transporter.verify();
+      logger.info(`✅ Email transporter verified successfully`);
+      console.log(`✅ Email transporter verified successfully`);
+    } catch (verifyError: any) {
+      logger.error(`❌ Email transporter verification failed:`, verifyError.message);
+      console.error(`❌ Email transporter verification failed:`, verifyError.message);
+      throw new AppError(`Email transporter verification failed: ${verifyError.message}`, 500);
+    }
 
     // Email content
     const { 
@@ -192,22 +232,77 @@ export const sendEmail = async (data: voucherData): Promise<EmailResponse> => {
     };
 
 
-    // Send email
-    const result = await transporter.sendMail(mailOptions);
+    // Send email with retry mechanism
+    let result;
+    let lastError;
+    const maxRetries = 3;
     
-    logger.info(`Email sent successfully to ${data.to}. Message ID: ${result.messageId}`);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        logger.info(`📤 Sending email to ${data.to} (attempt ${attempt}/${maxRetries})...`);
+        
+        result = await transporter.sendMail(mailOptions);
+        
+        logger.info(`✅ Email sent successfully to ${data.to}. Message ID: ${result.messageId}`);
+        
+        return {
+          success: true,
+          messageId: result.messageId
+        };
+        
+      } catch (error: any) {
+        lastError = error;
+        logger.warn(`⚠️ Email send attempt ${attempt} failed for ${data.to}: ${error?.message}`);
+        console.warn(`⚠️ Email send attempt ${attempt} failed for ${data.to}: ${error?.message}`);
+        
+        // Log detailed error info
+        logger.error(`❌ Email send error details:`, {
+          attempt,
+          email: data.to,
+          error: error?.message,
+          code: error?.code,
+          command: error?.command,
+          response: error?.response,
+          stack: error?.stack
+        });
+        console.error(`❌ Email send error details:`, {
+          attempt,
+          email: data.to,
+          error: error?.message,
+          code: error?.code,
+          command: error?.command,
+          response: error?.response
+        });
+        
+        if (attempt < maxRetries) {
+          const delay = attempt * 2000; // 2s, 4s, 6s
+          logger.info(`⏳ Retrying in ${delay}ms...`);
+          console.log(`⏳ Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
     
-    return {
-      success: true,
-      messageId: result.messageId
-    };
+    // All retries failed
+    throw lastError;
 
   } catch (error: any) {
-    logger.error(`Failed to send email to ${data.to}:`, {
+    logger.error(`❌ Failed to send email to ${data.to}:`, {
       error: error?.message || 'Unknown error',
       stack: error?.stack,
       email: data.to,
-      code: data.code
+      code: data.code,
+      errorCode: error?.code,
+      command: error?.command,
+      response: error?.response
+    });
+    console.error(`❌ Failed to send email to ${data.to}:`, {
+      error: error?.message || 'Unknown error',
+      email: data.to,
+      code: data.code,
+      errorCode: error?.code,
+      command: error?.command,
+      response: error?.response
     });
 
     return {
