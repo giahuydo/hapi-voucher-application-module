@@ -60,21 +60,25 @@ export const sendEmail = async (data: voucherData): Promise<EmailResponse> => {
     console.log(`🔧 Creating email transporter with Gmail service...`);
     
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        pass: process.env.EMAIL_PASS,
       },
-      // Add timeout and connection settings for Render
-      connectionTimeout: 60000, // 60 seconds
-      greetingTimeout: 30000,   // 30 seconds
-      socketTimeout: 60000,     // 60 seconds
+      connectionTimeout: 30000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
+      dnsTimeout: 10000,
       pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
-      rateDelta: 20000,         // 20 seconds
-      rateLimit: 5              // 5 emails per rateDelta
-    });
+      maxConnections: 1,
+      maxMessages: 10,
+      rateDelta: 30000,
+      rateLimit: 3,
+      family: 4,
+    } as any);
     
     // Test transporter connection
     logger.info(`🔄 Testing email transporter connection...`);
